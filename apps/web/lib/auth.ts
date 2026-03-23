@@ -83,7 +83,7 @@ const ProviderConfig = {
     allowDangerousEmailAccountLinking: true,
     authorization: {
       params: {
-        prompt: "consent", // force refresh_token on every login
+        prompt: "consent select_account", // force refresh_token + account chooser on every login
         access_type: "offline", // ask for a refresh_token
         response_type: "code",
       },
