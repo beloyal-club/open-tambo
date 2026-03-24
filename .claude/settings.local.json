@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"^/c/Users/Perkl/open-tambo/tambo/[^/]+/?$|^/c/Users/Perkl/open-tambo/tambo/[^/]+/[^/]+/?$\")",
+      "Bash(find /c/Users/Perkl/open-tambo/tambo -maxdepth 2 -iname *issue* -o -iname *roadmap* -o -iname *todo*)",
+      "Bash(wc -l /c/Users/Perkl/open-tambo/tambo/build*.log)",
+      "Bash(docker images:*)",
+      "Bash(docker build:*)",
+      "Bash(gh repo:*)",
+      "Bash(gh auth:*)",
+      "Bash(gh api:*)",
+      "Bash(git push:*)",
+      "mcp__chub-mcp__chub_search",
+      "WebFetch(domain:docs.tambo.co)",
+      "Bash(flyctl apps:*)",
+      "Bash(flyctl postgres:*)",
+      "Bash(flyctl secrets:*)",
+      "Bash(flyctl deploy:*)",
+      "Bash(flyctl status:*)",
+      "Bash(flyctl logs:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://open-tambo.fly.dev/)",
+      "Bash(curl -v https://open-tambo.fly.dev/)",
+      "Bash(curl -s https://open-tambo.fly.dev/)",
+      "Bash(curl -s -w \"\\\\nHTTP_CODE:%{http_code}\" https://open-tambo-web.fly.dev/)"
+    ]
+  }
+}

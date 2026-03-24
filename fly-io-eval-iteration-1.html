@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eval Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg: #faf9f5;
+      --surface: #ffffff;
+      --border: #e8e6dc;
+      --text: #141413;
+      --text-muted: #b0aea5;
+      --accent: #d97757;
+      --accent-hover: #c4613f;
+      --green: #788c5d;
+      --green-bg: #eef2e8;
+      --red: #c44;
+      --red-bg: #fceaea;
+      --header-bg: #141413;
+      --header-text: #faf9f5;
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Lora', Georgia, serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- Header ---- */
+    .header {
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .header .instructions {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+    .header .progress {
+      font-size: 0.875rem;
+      opacity: 0.8;
+      text-align: right;
+    }
+
+    /* ---- Main content ---- */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* ---- Sections ---- */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      flex-shrink: 0;
+    }
+    .section-header {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.75rem 1rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .section-body {
+      padding: 1rem;
+    }
+
+    /* ---- Config badge ---- */
+    .config-badge {
+      display: inline-block;
+      padding: 0.2rem 0.625rem;
+      border-radius: 9999px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-left: 0.75rem;
+      vertical-align: middle;
+    }
+    .config-badge.config-primary {
+      background: rgba(33, 150, 243, 0.12);
+      color: #1976d2;
+    }
+    .config-badge.config-baseline {
+      background: rgba(255, 193, 7, 0.15);
+      color: #f57f17;
+    }
+
+    /* ---- Prompt ---- */
+    .prompt-text {
+      white-space: pre-wrap;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+    }
+
+    /* ---- Outputs ---- */
+    .output-file {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .output-file + .output-file {
+      margin-top: 1rem;
+    }
+    .output-file-header {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .output-file-header .dl-btn {
+      font-size: 0.7rem;
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 500;
+      opacity: 0.8;
+    }
+    .output-file-header .dl-btn:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+    .output-file-content {
+      padding: 0.75rem;
+      overflow-x: auto;
+    }
+    .output-file-content pre {
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+    }
+    .output-file-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+    .output-file-content iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+    }
+    .output-file-content table {
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+      width: 100%;
+    }
+    .output-file-content table td,
+    .output-file-content table th {
+      border: 1px solid var(--border);
+      padding: 0.375rem 0.5rem;
+      text-align: left;
+    }
+    .output-file-content table th {
+      background: var(--bg);
+      font-weight: 600;
+    }
+    .output-file-content .download-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+    .output-file-content .download-link:hover {
+      background: var(--border);
+    }
+    .empty-state {
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    /* ---- Feedback ---- */
+    .prev-feedback {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.625rem 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .prev-feedback-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.25rem;
+      color: var(--text-muted);
+    }
+    .feedback-textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      resize: vertical;
+      color: var(--text);
+    }
+    .feedback-textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .feedback-status {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      min-height: 1.1em;
+    }
+
+    /* ---- Grades (collapsible) ---- */
+    .grades-toggle {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .grades-toggle:hover {
+      color: var(--accent);
+    }
+    .grades-toggle .arrow {
+      margin-right: 0.5rem;
+      transition: transform 0.15s;
+      font-size: 0.75rem;
+    }
+    .grades-toggle .arrow.open {
+      transform: rotate(90deg);
+    }
+    .grades-content {
+      display: none;
+      margin-top: 0.75rem;
+    }
+    .grades-content.open {
+      display: block;
+    }
+    .grades-summary {
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .grade-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .grade-pass { background: var(--green-bg); color: var(--green); }
+    .grade-fail { background: var(--red-bg); color: var(--red); }
+    .assertion-list {
+      list-style: none;
+    }
+    .assertion-item {
+      padding: 0.625rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8125rem;
+    }
+    .assertion-item:last-child { border-bottom: none; }
+    .assertion-status {
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    .assertion-status.pass { color: var(--green); }
+    .assertion-status.fail { color: var(--red); }
+    .assertion-evidence {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      padding-left: 1.5rem;
+    }
+
+    /* ---- View tabs ---- */
+    .view-tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 2rem;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .view-tab {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .view-tab:hover { color: var(--text); }
+    .view-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .view-panel { display: none; }
+    .view-panel.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* ---- Benchmark view ---- */
+    .benchmark-view {
+      padding: 1.5rem 2rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .benchmark-table {
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 0.8125rem;
+      width: 100%;
+      margin-bottom: 1.5rem;
+    }
+    .benchmark-table th, .benchmark-table td {
+      padding: 0.625rem 0.75rem;
+      text-align: left;
+      border: 1px solid var(--border);
+    }
+    .benchmark-table th {
+      font-family: 'Poppins', sans-serif;
+      background: var(--header-bg);
+      color: var(--header-text);
+      font-weight: 500;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .benchmark-table tr:hover { background: var(--bg); }
+    .benchmark-table tr.benchmark-row-with { background: rgba(33, 150, 243, 0.06); }
+    .benchmark-table tr.benchmark-row-without { background: rgba(255, 193, 7, 0.06); }
+    .benchmark-table tr.benchmark-row-with:hover { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-without:hover { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-table tr.benchmark-row-avg { font-weight: 600; border-top: 2px solid var(--border); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-with { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-without { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-delta-positive { color: var(--green); font-weight: 600; }
+    .benchmark-delta-negative { color: var(--red); font-weight: 600; }
+    .benchmark-notes {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .benchmark-notes h3 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+    .benchmark-notes ul {
+      list-style: disc;
+      padding-left: 1.25rem;
+    }
+    .benchmark-notes li {
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      margin-bottom: 0.375rem;
+    }
+    .benchmark-empty {
+      color: var(--text-muted);
+      font-style: italic;
+      text-align: center;
+      padding: 3rem;
+    }
+
+    /* ---- Navigation ---- */
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .nav-btn:hover:not(:disabled) {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .done-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .done-btn:hover {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .done-btn.ready {
+      border: none;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+    .done-btn.ready:hover {
+      background: var(--accent-hover);
+    }
+    /* ---- Done overlay ---- */
+    .done-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+    .done-overlay.visible {
+      display: flex;
+    }
+    .done-card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 2rem 3rem;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+    }
+    .done-card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .done-card p {
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    .done-card .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    .done-card button {
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    .done-card button:hover {
+      background: var(--bg);
+    }
+    /* ---- Toast ---- */
+    .toast {
+      position: fixed;
+      bottom: 5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 0.625rem 1.25rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 200;
+    }
+    .toast.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" style="height:100vh; display:flex; flex-direction:column;">
+    <div class="header">
+      <div>
+        <h1>Eval Review: <span id="skill-name"></span></h1>
+        <div class="instructions">Review each output and leave feedback below. Navigate with arrow keys or buttons. When done, copy feedback and paste into Claude Code.</div>
+      </div>
+      <div class="progress" id="progress"></div>
+    </div>
+
+    <!-- View tabs (only shown when benchmark data exists) -->
+    <div class="view-tabs" id="view-tabs" style="display:none;">
+      <button class="view-tab active" onclick="switchView('outputs')">Outputs</button>
+      <button class="view-tab" onclick="switchView('benchmark')">Benchmark</button>
+    </div>
+
+    <!-- Outputs panel (qualitative review) -->
+    <div class="view-panel active" id="panel-outputs">
+    <div class="main">
+      <!-- Prompt -->
+      <div class="section">
+        <div class="section-header">Prompt <span class="config-badge" id="config-badge" style="display:none;"></span></div>
+        <div class="section-body">
+          <div class="prompt-text" id="prompt-text"></div>
+        </div>
+      </div>
+
+      <!-- Outputs -->
+      <div class="section">
+        <div class="section-header">Output</div>
+        <div class="section-body" id="outputs-body">
+          <div class="empty-state">No output files found</div>
+        </div>
+      </div>
+
+      <!-- Previous Output (collapsible) -->
+      <div class="section" id="prev-outputs-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="togglePrevOutputs()">
+            <span class="arrow" id="prev-outputs-arrow">&#9654;</span>
+            Previous Output
+          </div>
+        </div>
+        <div class="grades-content" id="prev-outputs-content"></div>
+      </div>
+
+      <!-- Grades (collapsible) -->
+      <div class="section" id="grades-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="toggleGrades()">
+            <span class="arrow" id="grades-arrow">&#9654;</span>
+            Formal Grades
+          </div>
+        </div>
+        <div class="grades-content" id="grades-content"></div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="section">
+        <div class="section-header">Your Feedback</div>
+        <div class="section-body">
+          <textarea
+            class="feedback-textarea"
+            id="feedback"
+            placeholder="What do you think of this output? Any issues, suggestions, or things that look great?"
+          ></textarea>
+          <div class="feedback-status" id="feedback-status"></div>
+          <div class="prev-feedback" id="prev-feedback" style="display:none;">
+            <div class="prev-feedback-label">Previous feedback</div>
+            <div id="prev-feedback-text"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav" id="outputs-nav">
+      <button class="nav-btn" id="prev-btn" onclick="navigate(-1)">&#8592; Previous</button>
+      <button class="done-btn" id="done-btn" onclick="showDoneDialog()">Submit All Reviews</button>
+      <button class="nav-btn" id="next-btn" onclick="navigate(1)">Next &#8594;</button>
+    </div>
+    </div><!-- end panel-outputs -->
+
+    <!-- Benchmark panel (quantitative stats) -->
+    <div class="view-panel" id="panel-benchmark">
+      <div class="benchmark-view" id="benchmark-content">
+        <div class="benchmark-empty">No benchmark data available. Run a benchmark to see quantitative results here.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Done overlay -->
+  <div class="done-overlay" id="done-overlay">
+    <div class="done-card">
+      <h2>Review Complete</h2>
+      <p>Your feedback has been saved. Go back to your Claude Code session and tell Claude you're done reviewing.</p>
+      <div class="btn-row">
+        <button onclick="closeDoneDialog()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ---- Embedded data (injected by generate_review.py) ----
+    const EMBEDDED_DATA = {"skill_name": "fly-io", "runs": [{"id": "first-deploy-with_skill", "prompt": "I have a Node.js Express app with a Dockerfile. I want to deploy it to Fly.io for the first time. It needs a Postgres database and uses some env vars from a .env file.", "eval_id": 0, "outputs": [{"name": "APP_STRUCTURE.txt", "type": "text", "content": "Express.js Application Structure for Fly.io Deployment\n=======================================================\n\nSource Directory: /sessions/blissful-busy-goodall/fly-io-workspace/iteration-1/first-deploy/with_skill/app/\n\nFiles Created:\n--------------\n\n1. package.json\n   - Dependencies: express, pg, dotenv\n   - Dev dependency: nodemon\n   - Node engine: 20.x\n   - Scripts:\n     * npm start \u2192 node index.js\n     * npm dev \u2192 nodemon index.js (local development)\n     * npm run db:migrate \u2192 node migrate.js (called as release command on Fly.io)\n\n2. index.js (Main application file)\n   - Express server listening on port 8080 (from PORT env var)\n   - PostgreSQL connection via pg.Pool\n   - SSL enabled for production (NODE_ENV=production)\n   - Endpoints:\n     * GET /health \u2192 Simple health check (used by Fly.io)\n     * GET /status \u2192 Database connectivity check\n     * POST /test-insert \u2192 Insert test data\n     * GET /test-data \u2192 Retrieve test data\n   - Graceful shutdown handling (SIGTERM)\n\n3. migrate.js (Database migration script)\n   - Runs as release command before deployment\n   - Creates test_table with columns: id, message, created_at\n   - Exits with 0 on success, 1 on failure\n   - Deployment halts if migration fails\n\n4. .env (Local development only)\n   - NODE_ENV=development\n   - PORT=8080\n   - DATABASE_URL=postgresql://postgres:postgres@localhost:5432/express_app\n   - Note: Never commit this to git; use .gitignore\n\n5. Dockerfile (Multi-stage build)\n   - Base image: node:20-alpine\n   - Builder stage: Compiles dependencies, copies source\n   - Production stage: Copies only necessary artifacts\n   - Non-root user: appuser (security best practice)\n   - Health check: HTTP GET to /health every 30 seconds\n   - Port: 8080 (matches application)\n\n\nFly.io Output Files (in /outputs/):\n-----------------------------------\n\n1. fly.toml\n   - App name: express-postgres-app\n   - Primary region: ord (Chicago)\n   - Build: Uses Dockerfile\n   - Release command: npm run db:migrate\n   - Strategy: rolling (zero-downtime)\n   - Environment:\n     * NODE_ENV=production\n     * PORT=8080\n   - HTTP service:\n     * Internal port: 8080\n     * HTTPS enforced (force_https=true)\n     * Auto-scaling enabled\n     * Concurrency limits: soft 200, hard 250 requests\n   - VM: 512MB shared CPU\n\n2. Dockerfile\n   - Identical to app/Dockerfile (copied for deployment)\n   - Ready for upload to Fly.io\n\n3. transcript.md\n   - Complete deployment workflow\n   - All flyctl commands to run\n   - Expected outputs\n   - Troubleshooting guide\n   - Configuration explanations\n\n\nDeployment Workflow Summary:\n---------------------------\n\nStep 1: fly launch --no-deploy\n        \u2193\nStep 2: fly postgres create\n        \u2193\nStep 3: fly postgres attach <postgres-app-name>\n        \u2193\nStep 4: fly secrets import < .env\n        \u2193\nStep 5: fly deploy\n        \u2193\n      App is live on express-postgres-app.fly.dev\n\n\nKey Features Implemented:\n------------------------\n\n\u2713 Health check endpoint for Fly.io monitoring\n\u2713 Database connection pool with SSL for production\n\u2713 Database migrations run on every release\n\u2713 Non-root user in Docker image (security)\n\u2713 Multi-stage build for minimal image size\n\u2713 Graceful shutdown handling (SIGTERM)\n\u2713 Environment variable management (.env + secrets)\n\u2713 Rolling deployment strategy (zero downtime)\n\u2713 Concurrency limiting and auto-scaling\n\u2713 HTTPS enforcement with auto-provisioned TLS\n\n\nEnvironment Variables:\n---------------------\n\nLOCAL (.env):\n  NODE_ENV=development\n  PORT=8080\n  DATABASE_URL=postgresql://postgres:postgres@localhost:5432/express_app\n\nPRODUCTION (Fly.io):\n  NODE_ENV=production                          (from fly.toml [env])\n  PORT=8080                                    (from fly.toml [env])\n  DATABASE_URL=<postgres-connection-string>    (from postgres attachment secret)\n\n\nMachine Configuration:\n---------------------\n\nCPU: 1x shared vCPU (burstable)\nMemory: 512 MB\nStorage: Ephemeral (resets on restart)\nRegion: ord (Chicago)\n\nCan scale with:\n  fly scale count N          \u2192 Horizontal (more machines)\n  fly scale memory 1024      \u2192 Vertical (more RAM)\n  fly scale vm performance-1x \u2192 Vertical (dedicated CPU)\n\n\nDatabase:\n---------\n\nType: Managed PostgreSQL on Fly.io\nConnection: via DATABASE_URL secret\nAutomatic: fly postgres attach sets DATABASE_URL\nSSL: Enabled in production (NODE_ENV=production)\nMigrations: Run on every release via npm run db:migrate\nTables: test_table (id, message, created_at)\n\n\nMonitoring:\n-----------\n\nHealth checks: Every 30 seconds (via GET /health)\nLogs: fly logs\nStatus: fly status\nChecks: fly checks list\nDiagnostics: fly doctor\nSSH access: fly ssh console\n\nAll commands documented in transcript.md\n"}, {"name": "Dockerfile", "type": "binary", "mime": "application/octet-stream", "data_uri": "data:application/octet-stream;base64,IyBCdWlsZCBzdGFnZQpGUk9NIG5vZGU6MjAtYWxwaW5lIEFTIGJ1aWxkZXIKCldPUktESVIgL2FwcAoKIyBDb3B5IHBhY2thZ2UgZmlsZXMKQ09QWSBwYWNrYWdlKi5qc29uIC4vCgojIEluc3RhbGwgZGVwZW5kZW5jaWVzClJVTiBucG0gY2kKCiMgQ29weSBzb3VyY2UgY29kZQpDT1BZIC4gLgoKIyBQcm9kdWN0aW9uIHN0YWdlCkZST00gbm9kZToyMC1hbHBpbmUKCldPUktESVIgL2FwcAoKIyBDcmVhdGUgbm9uLXJvb3QgdXNlciBmb3Igc2VjdXJpdHkKUlVOIGFkZHVzZXIgLUQgYXBwdXNlcgoKIyBDb3B5IGZyb20gYnVpbGRlcgpDT1BZIC0tZnJvbT1idWlsZGVyIC9hcHAvbm9kZV9tb2R1bGVzIC4vbm9kZV9tb2R1bGVzCkNPUFkgLS1mcm9tPWJ1aWxkZXIgL2FwcC9wYWNrYWdlKi5qc29uIC4vCkNPUFkgLS1mcm9tPWJ1aWxkZXIgL2FwcC8qLmpzIC4vCgojIFNldCBvd25lcnNoaXAKUlVOIGNob3duIC1SIGFwcHVzZXI6YXBwdXNlciAvYXBwCgojIFN3aXRjaCB0byBub24tcm9vdCB1c2VyClVTRVIgYXBwdXNlcgoKIyBFeHBvc2UgcG9ydApFWFBPU0UgODA4MAoKIyBIZWFsdGggY2hlY2sKSEVBTFRIQ0hFQ0sgLS1pbnRlcnZhbD0zMHMgLS10aW1lb3V0PTNzIC0tc3RhcnQtcGVyaW9kPTQwcyAtLXJldHJpZXM9MyBcCiAgQ01EIG5vZGUgLWUgInJlcXVpcmUoJ2h0dHAnKS5nZXQoJ2h0dHA6Ly9sb2NhbGhvc3Q6ODA4MC9oZWFsdGgnLCAocikgPT4ge2lmIChyLnN0YXR1c0NvZGUgIT09IDIwMCkgdGhyb3cgbmV3IEVycm9yKHIuc3RhdHVzQ29kZSl9KSIKCiMgU3RhcnQgYXBwCkNNRCBbIm5vZGUiLCAiaW5kZXguanMiXQo="}, {"name": "fly.toml", "type": "text", "content": "# fly.toml app configuration\n# This file is created by `fly launch --no-deploy` command\n# See https://fly.io/docs/reference/configuration/ for information about how to use this file.\n\napp = \"express-postgres-app\"\nprimary_region = \"ord\"\n\n[build]\n  dockerfile = \"Dockerfile\"\n\n[deploy]\n  release_command = \"npm run db:migrate\"\n  strategy = \"rolling\"\n\n[env]\n  NODE_ENV = \"production\"\n  PORT = \"8080\"\n\n[http_service]\n  internal_port = 8080\n  force_https = true\n  auto_stop_machines = \"stop\"\n  auto_start_machines = true\n  min_machines_running = 1\n\n  [http_service.concurrency]\n    type = \"requests\"\n    hard_limit = 250\n    soft_limit = 200\n\n[[vm]]\n  memory = \"512mb\"\n  cpu_kind = \"shared\"\n  cpus = 1\n"}], "grading": {"eval_id": 0, "eval_name": "first-deploy", "configuration": "with_skill", "expectations": [{"text": "generates_fly_toml", "passed": true, "evidence": "Complete fly.toml file generated with all standard sections: app identity, build config, deploy strategy, environment variables, http_service, and vm configuration"}, {"text": "uses_fly_launch_no_deploy", "passed": true, "evidence": "Transcript Step 3 explicitly mentions 'fly launch --no-deploy' command to create Fly app without deploying, allowing review of configuration"}, {"text": "sets_up_postgres", "passed": true, "evidence": "Transcript Step 4 shows 'fly postgres create' command and Step 5 shows 'fly postgres attach' to connect database to app"}, {"text": "imports_env_secrets", "passed": true, "evidence": "Transcript Step 6 shows 'fly secrets import < .env' command to import secrets from .env file"}, {"text": "dockerfile_best_practices", "passed": true, "evidence": "Dockerfile uses multi-stage build (Stage 1: builder, Stage 2: production) and includes non-root user 'appuser' with chown and USER directives"}, {"text": "correct_port_config", "passed": true, "evidence": "fly.toml shows 'internal_port = 8080' which matches the PORT environment variable and Fly.io default"}]}}, {"id": "first-deploy-without_skill", "prompt": "I have a Node.js Express app with a Dockerfile. I want to deploy it to Fly.io for the first time. It needs a Postgres database and uses some env vars from a .env file.", "eval_id": 0, "outputs": [{"name": "fly.toml", "type": "text", "content": "app = \"my-express-app\"\nprimary_region = \"lax\"\n\n[build]\ndockerfile = \"Dockerfile\"\n\n[env]\nLOG_LEVEL = \"info\"\nNODE_ENV = \"production\"\n\n[[services]]\ninternal_port = 3000\nprocesses = [\"app\"]\nprotocol = \"tcp\"\n\n[services.http_options]\nh2_backend = true\n\n[[services.ports]]\nport = 80\nhandlers = [\"http\"]\nforce_https = true\n\n[[services.ports]]\nport = 443\nhandlers = [\"tls\", \"http\"]\n\n[[services.tcp_checks]]\ninterval = 10000\ntimeout = 5000\ngrace_period = \"5s\"\n\n[deploy]\nrelease_command = \"node scripts/migrate.js\"\n"}, {"name": "grading.json", "type": "text", "content": "{\n  \"eval_id\": 0,\n  \"eval_name\": \"first-deploy\",\n  \"configuration\": \"without_skill\",\n  \"expectations\": [\n    {\n      \"text\": \"generates_fly_toml\",\n      \"passed\": true,\n      \"evidence\": \"fly.toml file is provided in outputs directory with complete configuration including app name, primary_region, build section, services, and deploy settings\"\n    },\n    {\n      \"text\": \"uses_fly_launch_no_deploy\",\n      \"passed\": true,\n      \"evidence\": \"Transcript Step 1 explicitly states: 'select **no** for now - we'll configure environment variables first' and shows example of answering 'No' to deployment prompt\"\n    },\n    {\n      \"text\": \"sets_up_postgres\",\n      \"passed\": true,\n      \"evidence\": \"Step 1 mentions 'Ask if you want to create a Postgres database (select **yes**)' and Step 3 covers setting DATABASE_URL environment variable\"\n    },\n    {\n      \"text\": \"imports_env_secrets\",\n      \"passed\": true,\n      \"evidence\": \"Step 3 shows using 'fly secrets set' command for NODE_ENV, DATABASE_URL, API_KEY and provides 'fly secrets list' command to view them\"\n    },\n    {\n      \"text\": \"dockerfile_best_practices\",\n      \"passed\": false,\n      \"evidence\": \"The transcript does not mention multi-stage build or non-root user configuration. The example fly.toml references a Dockerfile but no Dockerfile content is shown that demonstrates best practices\"\n    },\n    {\n      \"text\": \"correct_port_config\",\n      \"passed\": false,\n      \"evidence\": \"The fly.toml shows internal_port = 3000, not 8080. While 8080 is a Fly default, this app uses port 3000. The step mentions 'default 3000 for Express' but the assertion requires port 8080\"\n    }\n  ]\n}\n"}], "grading": {"eval_id": 0, "eval_name": "first-deploy", "configuration": "without_skill", "expectations": [{"text": "generates_fly_toml", "passed": true, "evidence": "fly.toml file is provided in outputs directory with complete configuration including app name, primary_region, build section, services, and deploy settings"}, {"text": "uses_fly_launch_no_deploy", "passed": true, "evidence": "Transcript Step 1 explicitly states: 'select **no** for now - we'll configure environment variables first' and shows example of answering 'No' to deployment prompt"}, {"text": "sets_up_postgres", "passed": true, "evidence": "Step 1 mentions 'Ask if you want to create a Postgres database (select **yes**)' and Step 3 covers setting DATABASE_URL environment variable"}, {"text": "imports_env_secrets", "passed": true, "evidence": "Step 3 shows using 'fly secrets set' command for NODE_ENV, DATABASE_URL, API_KEY and provides 'fly secrets list' command to view them"}, {"text": "dockerfile_best_practices", "passed": false, "evidence": "The transcript does not mention multi-stage build or non-root user configuration. The example fly.toml references a Dockerfile but no Dockerfile content is shown that demonstrates best practices"}, {"text": "correct_port_config", "passed": false, "evidence": "The fly.toml shows internal_port = 3000, not 8080. While 8080 is a Fly default, this app uses port 3000. The step mentions 'default 3000 for Express' but the assertion requires port 8080"}]}}, {"id": "troubleshoot-db-with_skill", "prompt": "My Fly.io app is crashing after deploy. The logs say it can't connect to the database. How do I fix this?", "eval_id": 1, "outputs": [{"name": "SUMMARY.md", "type": "text", "content": "# Task Completion Summary\n\n## Overview\nCreated a comprehensive diagnostic and remediation guide for Fly.io database connection issues.\n\n## Deliverable\n**File:** `/sessions/blissful-busy-goodall/fly-io-workspace/iteration-1/troubleshoot-db/with_skill/outputs/transcript.md`\n\n**Statistics:**\n- 847 lines of detailed diagnostic guidance\n- 4 diagnostic steps with specific commands\n- 9 root causes covered completely\n- Every remedy includes exact flyctl commands with expected output interpretation\n- Prevention tips and quick recovery procedures included\n\n## What the Guide Covers\n\n### Diagnostic Steps (Commands that gather info)\n1. **Gather Initial Information** - Status, logs, health checks\n2. **Verify Database Configuration** - Secrets, environment variables, database existence\n3. **Test Database Connectivity** - SSH into the app, test network, DNS\n4. **Check Database Logs** - If using Fly-managed Postgres\n\n### Root Causes & Remediation (9 Common Issues)\n\n1. **Missing DATABASE_URL Secret**\n   - Symptoms: undefined or null connection string\n   - Fix: `fly postgres attach` or `fly secrets set`\n\n2. **DATABASE_URL Has Wrong Host/Port**\n   - Symptoms: ECONNREFUSED or ENOTFOUND\n   - Fix: Use correct internal hostname (e.g., `postgres.internal`)\n\n3. **Wrong Database Credentials**\n   - Symptoms: authentication failed\n   - Fix: Re-attach or verify with provider\n\n4. **Database Is Paused or Down**\n   - Symptoms: timeout/no response\n   - Fix: `fly postgres restart` or check provider dashboard\n\n5. **Network/Firewall Issues**\n   - Symptoms: connection timeout (not refused)\n   - Fix: Verify same region, check egress IP whitelist\n\n6. **App Expects Local Database**\n   - Symptoms: localhost:5432 in logs\n   - Fix: Use DATABASE_URL environment variable in code\n\n7. **Too Many Connections**\n   - Symptoms: \"too many connections\" error\n   - Fix: Add PgBouncer pooling or reduce machine count\n\n8. **Disk Full on Postgres**\n   - Symptoms: \"could not extend relation\"\n   - Fix: `fly volumes extend` or clean old data\n\n9. **DATABASE_URL Format Is Wrong**\n   - Symptoms: parsing errors or invalid connection string\n   - Fix: URL-encode special characters in password\n\n## Usage Workflow\n\nThe guide is structured for step-by-step diagnosis:\n\n1. Run diagnostic commands in order (Steps 1-4)\n2. Check logs for error patterns\n3. Match error pattern to one of 9 root causes\n4. Follow the specific remediation for that cause\n5. Apply fix and redeploy\n6. Verify with logs and status checks\n\n## Flyctl Commands Reference\n\nThe guide includes these key diagnostic commands:\n- `fly status` - Check machine and deployment status\n- `fly logs` - View application logs\n- `fly secrets list` - Check environment variables\n- `fly postgres list` - List databases\n- `fly postgres status` - Check database health\n- `fly ssh console` - SSH into running container\n- `fly postgres connect` - Connect to database directly\n- `fly deploy` - Redeploy after fixes\n\nEach command includes:\n- Exact syntax\n- What to look for in output\n- Example output for common cases\n- How to interpret errors\n\n## Key Features\n\n\u2713 **Comprehensive** - Covers 9 common root causes\n\u2713 **Practical** - Every step has exact commands and expected output\n\u2713 **Diagnostic-First** - Shows how to narrow down the issue before fixing\n\u2713 **Multi-Database** - Works with Fly-managed Postgres and external databases\n\u2713 **Prevention** - Tips for avoiding these issues in future deployments\n\u2713 **Recovery** - Quick steps for time-critical situations\n\u2713 **Testing** - Verification steps after each fix\n\n## Based on Skill\nThe guide follows best practices from the Fly.io SKILL.md:\n- Uses standard flyctl commands with proper flags\n- Covers infrastructure setup (Postgres, networks)\n- Follows troubleshooting methodology from skill\n- Includes secret management practices\n- References health checks and release commands\n"}], "grading": {"eval_id": 1, "eval_name": "troubleshoot-db", "configuration": "with_skill", "expectations": [{"text": "runs_diagnostic_commands", "passed": true, "evidence": "Transcript covers Step 1 with multiple diagnostic commands: 'fly status', 'fly logs', 'fly checks list', 'fly logs --instance', all used to gather information about the app state"}, {"text": "checks_database_url_secret", "passed": true, "evidence": "Transcript Step 2a explicitly shows 'fly secrets list' command and explains how to verify if DATABASE_URL is present"}, {"text": "checks_postgres_status", "passed": true, "evidence": "Transcript Step 4 covers 'fly postgres status' and Step 3a covers checking Postgres instance connectivity and SSH testing"}, {"text": "provides_remediation_steps", "passed": true, "evidence": "Multiple concrete root causes (9 total) with specific fix commands for each: fly postgres attach, fly secrets set, fly postgres connect, etc."}, {"text": "covers_multiple_root_causes", "passed": true, "evidence": "Covers 9 distinct root causes: Missing DATABASE_URL, Wrong host/port, Wrong credentials, Database paused, Network/firewall, Local database architecture, Too many connections, Disk full, and Wrong URL format"}]}}, {"id": "troubleshoot-db-without_skill", "prompt": "My Fly.io app is crashing after deploy. The logs say it can't connect to the database. How do I fix this?", "eval_id": 1, "outputs": [{"name": "grading.json", "type": "text", "content": "{\n  \"eval_id\": 1,\n  \"eval_name\": \"troubleshoot-db\",\n  \"configuration\": \"without_skill\",\n  \"expectations\": [\n    {\n      \"text\": \"runs_diagnostic_commands\",\n      \"passed\": true,\n      \"evidence\": \"Transcript includes multiple diagnostic commands: 'fly logs' (Step 1), 'fly status' (Step 2, Root Cause 2), 'fly postgres status' (Root Cause 2), and 'fly ssh console' with 'nc' connectivity test\"\n    },\n    {\n      \"text\": \"checks_database_url_secret\",\n      \"passed\": true,\n      \"evidence\": \"Step 2 explicitly states: 'Check that the DATABASE_URL environment variable is configured: fly secrets list -a your-app-name' and 'You should see DATABASE_URL in the list'\"\n    },\n    {\n      \"text\": \"checks_postgres_status\",\n      \"passed\": true,\n      \"evidence\": \"Root Cause 2 includes 'fly status -a your-postgres-app-db' and 'fly postgres status -a your-postgres-app-db' to verify database is running\"\n    },\n    {\n      \"text\": \"provides_remediation_steps\",\n      \"passed\": true,\n      \"evidence\": \"Each root cause provides concrete fix commands: 'fly postgres attach', 'fly machines restart', 'fly secrets set DATABASE_URL=...', 'fly deploy', 'fly postgres connect', 'ALTER USER postgres', etc.\"\n    },\n    {\n      \"text\": \"covers_multiple_root_causes\",\n      \"passed\": true,\n      \"evidence\": \"Covers 7 distinct root causes: 1) Missing DATABASE_URL Secret, 2) Postgres Not Running, 3) Wrong DATABASE_URL Format, 4) Network Connectivity Issue, 5) Database Name Wrong, 6) Postgres Credentials Wrong, 7) Release Command Failed\"\n    }\n  ]\n}\n"}], "grading": {"eval_id": 1, "eval_name": "troubleshoot-db", "configuration": "without_skill", "expectations": [{"text": "runs_diagnostic_commands", "passed": true, "evidence": "Transcript includes multiple diagnostic commands: 'fly logs' (Step 1), 'fly status' (Step 2, Root Cause 2), 'fly postgres status' (Root Cause 2), and 'fly ssh console' with 'nc' connectivity test"}, {"text": "checks_database_url_secret", "passed": true, "evidence": "Step 2 explicitly states: 'Check that the DATABASE_URL environment variable is configured: fly secrets list -a your-app-name' and 'You should see DATABASE_URL in the list'"}, {"text": "checks_postgres_status", "passed": true, "evidence": "Root Cause 2 includes 'fly status -a your-postgres-app-db' and 'fly postgres status -a your-postgres-app-db' to verify database is running"}, {"text": "provides_remediation_steps", "passed": true, "evidence": "Each root cause provides concrete fix commands: 'fly postgres attach', 'fly machines restart', 'fly secrets set DATABASE_URL=...', 'fly deploy', 'fly postgres connect', 'ALTER USER postgres', etc."}, {"text": "covers_multiple_root_causes", "passed": true, "evidence": "Covers 7 distinct root causes: 1) Missing DATABASE_URL Secret, 2) Postgres Not Running, 3) Wrong DATABASE_URL Format, 4) Network Connectivity Issue, 5) Database Name Wrong, 6) Postgres Credentials Wrong, 7) Release Command Failed"}]}}, {"id": "worker-redis-with_skill", "prompt": "I need to add a background worker process to my existing Fly.io app and also set up Redis for job queues.", "eval_id": 2, "outputs": [{"name": "00-START-HERE.txt", "type": "text", "content": "================================================================================\n                FLY.IO BACKGROUND WORKER & REDIS SETUP\n                         Complete Implementation Package\n================================================================================\n\nTASK COMPLETED: Add background worker process and Redis job queues to Fly.io app\n\nOUTPUT LOCATION:\n  /sessions/blissful-busy-goodall/fly-io-workspace/iteration-1/worker-redis/with_skill/outputs/\n\nFILES CREATED:\n  \u2713 README.md              - Index, overview, and quick reference\n  \u2713 CHANGES.md            - Detailed breakdown of configuration changes\n  \u2713 transcript.md         - Complete step-by-step implementation guide\n  \u2713 fly.toml.before       - Original configuration (basic web app)\n  \u2713 fly.toml.after        - Modified configuration (with process groups)\n  \u2713 00-START-HERE.txt     - This file\n\nWHAT YOU GET:\n  - Complete fly.toml configuration showing before/after states\n  - Detailed explanation of every change required\n  - Step-by-step commands to execute (all commands listed, since flyctl can't be run)\n  - Application code examples (worker.js, package.json updates)\n  - Troubleshooting and verification procedures\n  - Scaling and monitoring guidance\n  - Advanced patterns and next steps\n\nHOW TO USE THESE FILES:\n\n  1. Start with README.md for overview and quick reference\n  \n  2. Read CHANGES.md for a focused view of what's changing\n  \n  3. Compare fly.toml.before and fly.toml.after to see exact differences\n  \n  4. Follow transcript.md for complete implementation workflow\n  \n  5. Use transcript.md for troubleshooting and ongoing operations\n\nKEY CHANGES SUMMARY:\n\n  1. Add [processes] section to fly.toml:\n     [processes]\n       web = \"npm start\"\n       worker = \"npm run worker\"\n  \n  2. Update [http_service] to route traffic only to web:\n     [http_service]\n       processes = [\"web\"]\n  \n  3. Split [[vm]] configurations for independent sizing:\n     [[vm]]\n       processes = [\"web\"]\n       memory = \"512mb\"\n     [[vm]]\n       processes = [\"worker\"]\n       memory = \"256mb\"\n  \n  4. Create Redis instance:\n     fly redis create\n  \n  5. Update application code to use Redis for job queuing\n\nCOMMANDS TO RUN (in order):\n\n  fly version\n  fly auth whoami\n  fly redis create\n  (update fly.toml with changes from fly.toml.after)\n  fly deploy\n  fly scale count web=2 worker=1\n  fly status\n  fly logs\n\nEXPECTED OUTCOME:\n\n  - Redis instance running in Upstash\n  - REDIS_URL automatically set as secret\n  - 2 web machines handling HTTP requests\n  - 1 worker machine processing jobs from queue\n  - Independent scaling capability\n  - Non-blocking job processing\n\nBEFORE vs AFTER ARCHITECTURE:\n\n  Before (Monolithic):\n    Single process handles web requests AND background jobs\n    \u2192 Long tasks block HTTP responses\n    \u2192 Can't scale independently\n  \n  After (Multi-Process):\n    Web process: Handles HTTP requests only\n    Worker process: Processes jobs from Redis queue\n    \u2192 Fast, non-blocking responses\n    \u2192 Independent scaling (web=N, worker=M)\n\nFILE DESCRIPTIONS:\n\n  README.md (234 lines)\n    - Quick start guide\n    - File manifest\n    - Common questions\n    - Architecture overview\n    - Use when: You need a quick overview or reference\n\n  CHANGES.md (284 lines)\n    - Detailed before/after for each change\n    - Explains why each change is made\n    - Application code updates\n    - Comparison table\n    - Use when: You want to understand what changed and why\n\n  transcript.md (642 lines)\n    - Complete step-by-step workflow\n    - Every command with expected output\n    - Code examples for worker setup\n    - Troubleshooting section\n    - Advanced patterns\n    - Deployment checklist\n    - Use when: You're implementing this setup or troubleshooting\n\n  fly.toml.before (28 lines)\n    - Basic web-only configuration\n    - Shows starting point\n    - Use when: Comparing with after state\n\n  fly.toml.after (40 lines)\n    - Complete multi-process configuration\n    - Ready to use\n    - Shows final state\n    - Use when: Understanding required changes or copying config\n\nQUICK REFERENCE:\n\n  Process Types:\n    web    - HTTP server (from \"npm start\")\n    worker - Job processor (from \"npm run worker\")\n\n  Scaling:\n    fly scale count web=2 worker=1   # Start with this\n    fly scale count worker=3          # Increase workers later\n    fly scale show                    # Check current state\n\n  Monitoring:\n    fly status                        # See all machines\n    fly logs                          # See application logs\n    fly logs --follow                # Stream logs in real-time\n    fly ssh console                  # SSH into a machine\n\n  Troubleshooting:\n    fly logs                          # Check for errors\n    fly scale show                    # Verify process counts\n    redis-cli -u $REDIS_URL ping     # Test Redis connection\n\nNEXT STEPS:\n\n  1. Read this file \u2713 (you're here)\n  2. Read README.md for overview\n  3. Review CHANGES.md to understand modifications\n  4. Compare fly.toml.before and fly.toml.after\n  5. Follow transcript.md for implementation\n  6. Deploy and verify with fly status/logs\n\nIMPORTANT:\n\n  - All commands are shown in transcript.md (flyctl cannot be run)\n  - Configuration is production-ready\n  - Includes best practices for web/worker separation\n  - Ready to customize for your specific use case\n  - Includes troubleshooting for common issues\n\nFor detailed information, see the individual markdown files.\n\nGenerated: 2026-03-22\nStatus: Complete and ready for implementation\n"}, {"name": "CHANGES.md", "type": "text", "content": "# Configuration Changes Summary\n\n## Overview\nThis document summarizes the exact changes made to convert a basic Fly.io web app into a multi-process application with background workers and Redis job queue support.\n\n---\n\n## Change 1: Add Process Groups\n\n**Location:** `[processes]` section in fly.toml\n\n**Before:** (No processes section)\n```toml\n# Not present\n```\n\n**After:** (Add new section)\n```toml\n[processes]\n  web = \"npm start\"\n  worker = \"npm run worker\"\n```\n\n**Explanation:**\n- Defines two process types: `web` and `worker`\n- `web` process: Runs your Express/HTTP server\n- `worker` process: Runs the background job worker\n- Each can be scaled independently using `fly scale count web=N worker=M`\n\n---\n\n## Change 2: Update HTTP Service Configuration\n\n**Location:** `[http_service]` section in fly.toml\n\n**Before:**\n```toml\n[http_service]\n  internal_port = 8080\n  force_https = true\n  auto_stop_machines = \"stop\"\n  auto_start_machines = true\n  min_machines_running = 1\n\n  [http_service.concurrency]\n    type = \"requests\"\n    hard_limit = 250\n    soft_limit = 200\n```\n\n**After:**\n```toml\n[http_service]\n  internal_port = 8080\n  force_https = true\n  auto_stop_machines = \"stop\"\n  auto_start_machines = true\n  min_machines_running = 1\n  processes = [\"web\"]  # <- NEW LINE: Only route HTTP to web process\n\n  [http_service.concurrency]\n    type = \"requests\"\n    hard_limit = 250\n    soft_limit = 200\n```\n\n**Explanation:**\n- The new `processes = [\"web\"]` line ensures HTTP traffic routes ONLY to web machines\n- Worker machines don't listen for HTTP; they only process background jobs\n- This prevents traffic from accidentally hitting worker machines\n\n---\n\n## Change 3: Split VM Configuration\n\n**Location:** `[[vm]]` sections in fly.toml\n\n**Before:** (Single VM config applies to all)\n```toml\n[[vm]]\n  memory = \"512mb\"\n  cpu_kind = \"shared\"\n  cpus = 1\n```\n\n**After:** (Separate configs per process)\n```toml\n# VM spec for web process\n[[vm]]\n  processes = [\"web\"]\n  memory = \"512mb\"\n  cpu_kind = \"shared\"\n  cpus = 1\n\n# VM spec for worker process (can be sized differently)\n[[vm]]\n  processes = [\"worker\"]\n  memory = \"256mb\"\n  cpu_kind = \"shared\"\n  cpus = 1\n```\n\n**Explanation:**\n- Web process: 512MB RAM (handles HTTP requests and responses)\n- Worker process: 256MB RAM (sufficient for processing queued jobs)\n- Each `[[vm]]` block targets specific process groups via `processes = [...]`\n- Can independently adjust specs based on workload (e.g., image-heavy worker might need 1024MB)\n\n---\n\n## Change 4: Redis Setup (Command-line)\n\n**Command to run:**\n```bash\nfly redis create\n```\n\n**What this does:**\n1. Creates a managed Upstash Redis instance in the same region as your app\n2. Automatically sets the `REDIS_URL` environment variable as a secret\n3. Makes Redis available to your app via the private URL (e.g., `redis://default:password@my-app-redis.internal:6379`)\n\n**Verification:**\n```bash\nfly secrets list\n# Output includes: REDIS_URL\n\nfly redis status <redis-name>\n# Shows Redis instance details\n```\n\n---\n\n## Change 5: Application Code Updates\n\n### File: `package.json`\n\n**Add worker script:**\n```json\n{\n  \"scripts\": {\n    \"start\": \"node index.js\",\n    \"worker\": \"node worker.js\"\n  }\n}\n```\n\n### File: `worker.js` (New)\n\n**Create entry point for background worker:**\n```javascript\nconst Queue = require('bull');\nconst redisUrl = process.env.REDIS_URL;\n\nconst emailQueue = new Queue('emails', redisUrl);\n\nemailQueue.process(async (job) => {\n  console.log(`Processing job: ${job.id}`);\n  // Your job logic here\n  return { success: true };\n});\n\nconsole.log('Worker started');\n```\n\n### File: `index.js` (Main app)\n\n**Enqueue jobs from your API:**\n```javascript\nconst Queue = require('bull');\nconst redisUrl = process.env.REDIS_URL;\nconst emailQueue = new Queue('emails', redisUrl);\n\napp.post('/send-email', async (req, res) => {\n  await emailQueue.add(req.body);\n  res.json({ queued: true });\n});\n```\n\n---\n\n## Deployment Steps\n\n```bash\n# 1. Create Redis\nfly redis create\n\n# 2. Update fly.toml with changes above\n# (Apply all changes from this document)\n\n# 3. Deploy\nfly deploy\n\n# 4. Scale processes\nfly scale count web=2 worker=1\n\n# 5. Verify\nfly status\nfly logs\n```\n\n---\n\n## Verification Checklist\n\nAfter deployment, verify these aspects:\n\n```bash\n# Check both processes are running\nfly status\n# Should show: 2 web machines, 1 worker machine\n\n# Check logs for errors\nfly logs\n# Should show both web and worker logs\n\n# Test HTTP endpoint\ncurl https://my-app.fly.dev/\n\n# Test Redis from SSH\nfly ssh console\nredis-cli -u $REDIS_URL ping\n# Should return: PONG\n\n# Check queue status\nfly ssh console -s worker\n# Inside the app, query Bull queue status\n```\n\n---\n\n## Scaling Examples\n\n```bash\n# Scale web for more traffic capacity\nfly scale count web=5\n\n# Scale workers for job processing\nfly scale count worker=3\n\n# View current state\nfly scale show\n\n# Increase worker RAM if needed\nfly scale vm performance-1x --process worker\n```\n\n---\n\n## Comparison Table\n\n| Aspect | Before | After |\n|--------|--------|-------|\n| Processes | 1 (monolithic) | 2 (web + worker) |\n| Job Handling | Inline in HTTP requests | Queued via Redis + separate worker |\n| Scaling | All or nothing | Independent (web=2, worker=1) |\n| HTTP Traffic | All machines | web process only |\n| Redis | None | Upstash managed instance |\n| Worker Size | N/A | 256MB (customizable) |\n| Job Persistence | None | Redis (configurable TTL) |\n\n---\n\n## Key Benefits\n\n1. **Non-blocking requests:** Long-running jobs don't block HTTP responses\n2. **Independent scaling:** Add workers during high queue load without affecting web capacity\n3. **Resource efficiency:** Worker machines can use less RAM since they don't handle HTTP\n4. **Reliability:** Failed jobs can be retried with exponential backoff\n5. **Observability:** Separate logs for web and worker processes\n\n---\n\n## Important Notes\n\n- The `REDIS_URL` is automatically set as a secret after `fly redis create`\n- Worker machines don't need to listen on port 8080; they connect to Redis\n- Each process type can have its own resource specs in `fly.toml`\n- The Dockerfile doesn't change; it builds a single image used by both process types\n- Jobs are queued in Redis and survive worker restarts (depending on Redis TTL)\n\n---\n\n**End of Changes Summary**\n"}, {"name": "EXECUTION_SUMMARY.md", "type": "text", "content": "# Task Execution Summary\n\n**Task:** Add a background worker process to an existing Fly.io app and set up Redis for job queues\n\n**Status:** \u2713 COMPLETED\n\n**Outputs Location:** `/sessions/blissful-busy-goodall/fly-io-workspace/iteration-1/worker-redis/with_skill/outputs/`\n\n---\n\n## What Was Delivered\n\n### 1. Configuration Files\n- **fly.toml.before** - Original basic web-only configuration (28 lines)\n- **fly.toml.after** - Modified multi-process configuration with worker support (40 lines)\n\n### 2. Documentation\n- **00-START-HERE.txt** - Quick start guide and file index (text format for easy viewing)\n- **README.md** - Overview, architecture, quick reference, and FAQ\n- **CHANGES.md** - Detailed breakdown of every configuration change with explanations\n- **transcript.md** - Complete step-by-step implementation guide with all commands\n\n### 3. Total Output\n- 6 files created\n- 1,160+ lines of markdown documentation\n- 52KB total content\n- Ready for immediate implementation\n\n---\n\n## Key Modifications\n\n### fly.toml Changes\n\n**Addition 1: Process Groups**\n```toml\n[processes]\n  web = \"npm start\"\n  worker = \"npm run worker\"\n```\n\n**Addition 2: HTTP Service Configuration**\n```toml\n[http_service]\n  processes = [\"web\"]  # Only route to web process\n```\n\n**Addition 3: Per-Process VM Specs**\n```toml\n[[vm]]\n  processes = [\"web\"]\n  memory = \"512mb\"\n\n[[vm]]\n  processes = [\"worker\"]\n  memory = \"256mb\"\n```\n\n### Infrastructure Changes\n\n**Command to run:**\n```bash\nfly redis create  # Creates Upstash Redis and sets REDIS_URL secret\n```\n\n### Application Code Changes\n\n**New file: worker.js**\n- Job processing logic using Bull queue library\n- Connects to Redis via REDIS_URL environment variable\n\n**Updated: package.json**\n- Add `\"worker\": \"node worker.js\"` to scripts\n\n**Updated: index.js (or main app file)**\n- Import Bull queue\n- Enqueue jobs from HTTP endpoints\n\n---\n\n## Implementation Workflow (from transcript.md)\n\n1. Verify flyctl installation and authentication\n2. Create Redis instance with `fly redis create`\n3. Update fly.toml with process groups and configuration\n4. Update application code to use Redis\n5. Deploy with `fly deploy`\n6. Scale processes with `fly scale count web=2 worker=1`\n7. Monitor and verify with `fly status` and `fly logs`\n\n---\n\n## Architecture Before & After\n\n### Before: Monolithic\n```\nSingle Process:\n- HTTP requests \u2192 App \u2192 Response\n- Background jobs run in same process \u2192 Blocking!\n- Can't scale independently\n```\n\n### After: Multi-Process\n```\nWeb Process (x2):\n- HTTP requests \u2192 App \u2192 Response (non-blocking)\n\nWorker Process (x1):\n- Consumes jobs from Redis queue\n- Processes independently\n\nRedis:\n- Central job queue\n- Persistent storage\n```\n\n---\n\n## Key Features of the Solution\n\n\u2713 **Non-blocking:** Web requests don't wait for long-running jobs\n\u2713 **Independent scaling:** Add workers or web servers independently\n\u2713 **Job persistence:** Jobs survive worker restarts\n\u2713 **Retry logic:** Built-in exponential backoff\n\u2713 **Monitoring:** Separate logs for web and worker\n\u2713 **Production-ready:** Best practices included\n\u2713 **Flexible:** Can be extended to multiple worker types\n\n---\n\n## Files at a Glance\n\n| File | Purpose | Size | Use When |\n|------|---------|------|----------|\n| 00-START-HERE.txt | Quick navigation guide | 8KB | Starting out |\n| README.md | Overview and reference | 8KB | Want quick reference |\n| CHANGES.md | Detailed change breakdown | 8KB | Understanding changes |\n| transcript.md | Complete workflow guide | 16KB | Implementing step-by-step |\n| fly.toml.before | Original config | 4KB | Comparing states |\n| fly.toml.after | Modified config | 4KB | Using as template |\n\n---\n\n## Next Steps for User\n\n1. **Review:** Start with 00-START-HERE.txt or README.md\n2. **Compare:** Look at fly.toml.before vs fly.toml.after\n3. **Understand:** Read CHANGES.md for detailed explanation\n4. **Implement:** Follow transcript.md step-by-step\n5. **Deploy:** Execute commands as outlined\n6. **Verify:** Run verification commands in transcript.md\n\n---\n\n## Commands Summary\n\n```bash\n# Verify tools\nfly version\nfly auth whoami\n\n# Create Redis\nfly redis create\n\n# Update fly.toml (manually - copy from fly.toml.after)\n\n# Deploy\nfly deploy\n\n# Scale processes\nfly scale count web=2 worker=1\n\n# Monitor\nfly status\nfly logs --follow\nfly scale show\n\n# Troubleshoot\nfly ssh console\nredis-cli -u $REDIS_URL ping\n```\n\n---\n\n## Configuration Highlights\n\n**Redis Integration:**\n- Automatic setup with `fly redis create`\n- REDIS_URL set as secret automatically\n- Upstash managed instance (no ops required)\n- Global read replicas available\n\n**Process Management:**\n- Web and worker run same Docker image\n- Different startup commands per process\n- Independent resource allocation\n- Independent scaling\n\n**Best Practices Included:**\n- HTTP traffic routed only to web\n- Worker machines don't need HTTP ports\n- Separate VM specs for different workloads\n- Graceful degradation if workers fail\n\n---\n\n## What Not Included (Out of Scope)\n\n- Actual Fly.io account setup (assumed existing)\n- Specific job queue library choice (Bull shown as example)\n- Custom health checks configuration\n- Database setup (separate from this task)\n- Monitoring/alerting system setup\n- Production secrets management beyond basic secrets\n\n---\n\n## Quality Assurance\n\n\u2713 Configuration validated against Fly.io best practices\n\u2713 All commands documented with expected outputs\n\u2713 Code examples shown for worker and job enqueueing\n\u2713 Troubleshooting section included\n\u2713 Scaling examples provided\n\u2713 Before/after comparison shown\n\u2713 Architecture explained clearly\n\u2713 Multiple documentation formats provided\n\n---\n\n## Document Statistics\n\n- Total files: 6\n- Total lines: 1,160+\n- Configuration sections: 5 major changes\n- Code examples: 8+\n- Commands documented: 20+\n- Troubleshooting topics: 6+\n- Advanced patterns: 3+\n\n---\n\n## Validation\n\nAll deliverables:\n- Follow Fly.io skill guidance from SKILL.md\n- Include step-by-step instructions\n- Show before/after configurations\n- Document all commands to run\n- Explain configuration choices\n- Include troubleshooting guidance\n- Ready for production deployment\n\n---\n\n**Completion Date:** 2026-03-22\n**Status:** Ready for implementation\n**Skill Used:** fly-io deployment skill\n**Approach:** Comprehensive documentation with multiple entry points for different user needs\n"}, {"name": "FILES.txt", "type": "text", "content": "================================================================================\n                         OUTPUT FILES INDEX\n================================================================================\n\nLocation: /sessions/blissful-busy-goodall/fly-io-workspace/iteration-1/worker-redis/with_skill/outputs/\n\nTotal Files: 7\nTotal Size: ~52KB\nTotal Documentation: 1,160+ lines\n\n================================================================================\n\nFILE MANIFEST AND PURPOSE\n\n================================================================================\n\n1. 00-START-HERE.txt (Text format, ~300 lines)\n   \u251c\u2500 Quick start guide for the impatient\n   \u251c\u2500 High-level overview of changes needed\n   \u251c\u2500 File descriptions with use cases\n   \u251c\u2500 Commands to run in order\n   \u251c\u2500 Key changes summary\n   \u251c\u2500 Architecture before/after diagram\n   \u2514\u2500 Start here for quick orientation\n\n2. FILES.txt (This file)\n   \u251c\u2500 Complete manifest of all outputs\n   \u251c\u2500 Descriptions of each file\n   \u251c\u2500 Recommended reading order\n   \u2514\u2500 Quick reference table\n\n3. EXECUTION_SUMMARY.md (~250 lines)\n   \u251c\u2500 What was delivered and why\n   \u251c\u2500 Key modifications summary\n   \u251c\u2500 Implementation workflow\n   \u251c\u2500 Architecture before/after\n   \u251c\u2500 Commands summary\n   \u251c\u2500 Quality assurance checklist\n   \u2514\u2500 Validation against requirements\n\n4. README.md (~234 lines)\n   \u251c\u2500 Comprehensive overview\n   \u251c\u2500 Architecture explanation\n   \u251c\u2500 File-by-file descriptions\n   \u251c\u2500 Quick start checklist\n   \u251c\u2500 Key concepts explained\n   \u251c\u2500 Implementation checklist\n   \u251c\u2500 Common questions answered\n   \u2514\u2500 Use for comprehensive understanding\n\n5. CHANGES.md (~284 lines)\n   \u251c\u2500 Detailed change-by-change breakdown\n   \u251c\u2500 Before/after for each modification\n   \u251c\u2500 Explanations of why changes are made\n   \u251c\u2500 Redis setup details\n   \u251c\u2500 Application code examples\n   \u251c\u2500 Comparison table\n   \u251c\u2500 Benefits of the changes\n   \u2514\u2500 Use for understanding what changed and why\n\n6. transcript.md (~642 lines)\n   \u251c\u2500 Complete step-by-step implementation guide\n   \u251c\u2500 Every command with expected output\n   \u251c\u2500 Worker code examples (Node.js)\n   \u251c\u2500 Environment variables and secrets\n   \u251c\u2500 Deployment checklist\n   \u251c\u2500 Verification and monitoring procedures\n   \u251c\u2500 Troubleshooting section\n   \u251c\u2500 Advanced patterns (multiple workers, etc.)\n   \u251c\u2500 Scaling examples\n   \u2514\u2500 Use for following along during implementation\n\n7. fly.toml.before (~28 lines)\n   \u251c\u2500 Original configuration (basic web app)\n   \u251c\u2500 No process groups\n   \u251c\u2500 Single HTTP service configuration\n   \u251c\u2500 Single VM specification\n   \u2514\u2500 Use for understanding starting point\n\n8. fly.toml.after (~40 lines)\n   \u251c\u2500 Modified configuration (multi-process)\n   \u251c\u2500 Includes process groups for web and worker\n   \u251c\u2500 HTTP service limited to web process\n   \u251c\u2500 Separate VM specs for each process\n   \u2514\u2500 Use as template for your own fly.toml\n\n================================================================================\n\nRECOMMENDED READING ORDER\n\n================================================================================\n\nFor Quick Implementation (30 min):\n  1. 00-START-HERE.txt         \u2190 Read this first (orientation)\n  2. fly.toml.before & .after  \u2190 Compare to see differences\n  3. CHANGES.md                 \u2190 Understand key changes\n  4. EXECUTION_SUMMARY.md       \u2190 Get workflow overview\n\nFor Complete Understanding (1-2 hours):\n  1. 00-START-HERE.txt         \u2190 Orientation and overview\n  2. README.md                  \u2190 Architecture and concepts\n  3. fly.toml.before & .after  \u2190 See actual configuration\n  4. CHANGES.md                 \u2190 Detailed explanation of changes\n  5. transcript.md              \u2190 Step-by-step implementation\n  6. EXECUTION_SUMMARY.md       \u2190 Final summary and checklist\n\nFor Step-by-Step Implementation (Follow-along):\n  1. 00-START-HERE.txt         \u2190 Overview\n  2. transcript.md              \u2190 Follow every step\n  3. fly.toml.after            \u2190 Copy configuration\n  4. CHANGES.md                 \u2190 Reference during changes\n  5. EXECUTION_SUMMARY.md       \u2190 Verify completion\n\nFor Troubleshooting:\n  1. 00-START-HERE.txt         \u2190 Quick reference\n  2. transcript.md              \u2190 Troubleshooting section\n  3. CHANGES.md                 \u2190 Configuration reference\n\n================================================================================\n\nFILE USAGE TABLE\n\n================================================================================\n\n                              Purpose                        Length\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n00-START-HERE.txt    | Quick start, navigation guide        | 300 lines\nFILES.txt            | This index                            | 180 lines\nREADME.md            | Overview, FAQ, architecture           | 234 lines\nCHANGES.md           | Detailed change breakdown             | 284 lines\nEXECUTION_SUMMARY.md | Execution report and summary          | 250 lines\ntranscript.md        | Complete implementation guide         | 642 lines\nfly.toml.before      | Original basic configuration          | 28 lines\nfly.toml.after       | Modified multi-process configuration  | 40 lines\n\n================================================================================\n\nCONTENT MAPPING BY TOPIC\n\n================================================================================\n\nTopic: Understanding Process Groups\n  \u251c\u2500 00-START-HERE.txt         (Overview)\n  \u251c\u2500 README.md                 (Architecture section)\n  \u251c\u2500 CHANGES.md                (Change 1: Add Process Groups)\n  \u2514\u2500 transcript.md             (Step 7: Scale Process Groups)\n\nTopic: Redis Configuration\n  \u251c\u2500 00-START-HERE.txt         (Commands section)\n  \u251c\u2500 CHANGES.md                (Change 4: Redis Setup)\n  \u2514\u2500 transcript.md             (Step 3: Create Redis Instance)\n\nTopic: fly.toml Changes\n  \u251c\u2500 CHANGES.md                (Complete breakdown)\n  \u251c\u2500 fly.toml.before           (Original state)\n  \u251c\u2500 fly.toml.after            (Modified state)\n  \u2514\u2500 transcript.md             (Step 4: Update fly.toml)\n\nTopic: Application Code Changes\n  \u251c\u2500 CHANGES.md                (Change 5: Application Updates)\n  \u2514\u2500 transcript.md             (Step 5: Update Application Code)\n\nTopic: Deployment Process\n  \u251c\u2500 00-START-HERE.txt         (Command sequence)\n  \u251c\u2500 transcript.md             (Step 6: Deploy)\n  \u251c\u2500 transcript.md             (Step 7: Scale)\n  \u2514\u2500 EXECUTION_SUMMARY.md      (Workflow overview)\n\nTopic: Monitoring & Troubleshooting\n  \u251c\u2500 transcript.md             (Step 8: Verify Setup)\n  \u251c\u2500 transcript.md             (Troubleshooting section)\n  \u2514\u2500 transcript.md             (Common patterns)\n\nTopic: Before/After Comparison\n  \u251c\u2500 fly.toml.before           (Original)\n  \u251c\u2500 fly.toml.after            (Modified)\n  \u251c\u2500 README.md                 (Architecture section)\n  \u2514\u2500 EXECUTION_SUMMARY.md      (Highlights)\n\n================================================================================\n\nKEY INFORMATION BY FILE\n\n================================================================================\n\n00-START-HERE.txt\n  \u2022 Task overview and completion status\n  \u2022 File descriptions with use cases\n  \u2022 Architecture before/after diagrams\n  \u2022 Commands to run in correct order\n  \u2022 Quick reference section\n  \u2022 Next steps guidance\n\nREADME.md\n  \u2022 Overview of the entire package\n  \u2022 Architecture explanation (diagrams included)\n  \u2022 File-by-file descriptions\n  \u2022 Key concepts explained\n  \u2022 Implementation checklist\n  \u2022 Common questions with answers\n  \u2022 Next steps section\n\nCHANGES.md\n  \u2022 Change 1: Add [processes] section\n  \u2022 Change 2: Update [http_service]\n  \u2022 Change 3: Split [[vm]] configs\n  \u2022 Change 4: Redis setup command\n  \u2022 Change 5: Application code updates\n  \u2022 Comparison table\n  \u2022 Benefits section\n  \u2022 Important notes\n\nEXECUTION_SUMMARY.md\n  \u2022 What was delivered\n  \u2022 Configuration highlights\n  \u2022 Implementation workflow\n  \u2022 Before/after architecture\n  \u2022 Quality assurance checklist\n  \u2022 Commands summary\n  \u2022 Validation details\n\ntranscript.md\n  \u2022 Step 1: Verify tools\n  \u2022 Step 2: Examine fly.toml\n  \u2022 Step 3: Create Redis\n  \u2022 Step 4: Update fly.toml\n  \u2022 Step 5: Update application\n  \u2022 Step 6: Deploy\n  \u2022 Step 7: Scale processes\n  \u2022 Step 8: Verify and monitor\n  \u2022 Step 9: Secrets management\n  \u2022 Troubleshooting guide\n  \u2022 Advanced patterns\n  \u2022 Complete command reference\n\nfly.toml.before\n  \u2022 app name and region\n  \u2022 [build] section\n  \u2022 [deploy] section\n  \u2022 [env] section\n  \u2022 [http_service] section\n  \u2022 [[vm]] section\n\nfly.toml.after\n  \u2022 All sections from .before PLUS:\n  \u2022 [processes] section (NEW)\n  \u2022 [http_service].processes = [\"web\"] (NEW)\n  \u2022 Separate [[vm]] blocks per process (MODIFIED)\n\n================================================================================\n\nDOCUMENT STATISTICS\n\n================================================================================\n\nTotal Lines:      1,160+\nTotal Files:      8\nTotal Size:       ~52KB\n\nCode Examples:    8+\nCommands Listed:  20+\nTroubleshooting:  6+ topics\nAdvanced Topics:  3+\nBefore/After:     2 fly.toml versions\n\nText Formats:     TXT (1), Markdown (5), TOML (2)\n\n================================================================================\n\nHOW TO USE THESE FILES\n\n================================================================================\n\nScenario 1: \"I want to get started quickly\"\n  \u2192 Read 00-START-HERE.txt, compare fly.toml files, follow CHANGES.md\n\nScenario 2: \"I want to understand everything\"\n  \u2192 Read in order: README.md \u2192 CHANGES.md \u2192 transcript.md\n\nScenario 3: \"I'm implementing this step-by-step\"\n  \u2192 Use transcript.md, reference CHANGES.md for details, copy from fly.toml.after\n\nScenario 4: \"Something went wrong\"\n  \u2192 Check transcript.md troubleshooting section\n\nScenario 5: \"I just want the configuration files\"\n  \u2192 Use fly.toml.after as template, reference CHANGES.md for context\n\nScenario 6: \"I need to brief my team\"\n  \u2192 Share EXECUTION_SUMMARY.md and README.md\n\nScenario 7: \"I need a checklist\"\n  \u2192 Use checklist from README.md or transcript.md deployment section\n\n================================================================================\n\nCROSS-REFERENCES\n\n================================================================================\n\nIf you want to know about:\n\n  [processes]          \u2192 CHANGES.md (Change 1), transcript.md (Step 7)\n  [http_service]       \u2192 CHANGES.md (Change 2), fly.toml.after\n  [[vm]]               \u2192 CHANGES.md (Change 3), fly.toml.after\n  Redis                \u2192 CHANGES.md (Change 4), transcript.md (Step 3)\n  Application code     \u2192 CHANGES.md (Change 5), transcript.md (Step 5)\n  Deployment           \u2192 transcript.md (Step 6), EXECUTION_SUMMARY.md\n  Scaling              \u2192 transcript.md (Step 7), README.md\n  Monitoring           \u2192 transcript.md (Step 8), README.md\n  Troubleshooting      \u2192 transcript.md (Troubleshooting), README.md (FAQ)\n  Advanced patterns    \u2192 transcript.md (Advanced), README.md (Next Steps)\n\n================================================================================\n\nQUICK FACTS\n\n================================================================================\n\n\u2022 Configuration ready for: Production use\n\u2022 Number of process groups: 2 (web, worker)\n\u2022 Web machine size: 512MB RAM, 1 shared CPU\n\u2022 Worker machine size: 256MB RAM, 1 shared CPU\n\u2022 Redis provider: Upstash\n\u2022 Job queue library (example): Bull\n\u2022 Recommended initial scaling: web=2, worker=1\n\u2022 Total changes to fly.toml: 3 main modifications\n\u2022 New files needed: worker.js (application code example shown)\n\u2022 Estimated implementation time: 30-60 minutes\n\n================================================================================\n\nSUPPORT & REFERENCES\n\n================================================================================\n\nAll commands shown in: transcript.md (Section: Summary of Commands Run)\nAll configuration shown in: fly.toml.after (ready to use as template)\nAll code examples in: CHANGES.md and transcript.md\nAll troubleshooting in: transcript.md (Troubleshooting section)\nArchitecture explained in: README.md and EXECUTION_SUMMARY.md\nComplete workflow in: transcript.md\n\nFor Fly.io official docs, visit: https://fly.io/docs/\n\n================================================================================\n\nVERSION & METADATA\n\n================================================================================\n\nGenerated: 2026-03-22\nStatus: Complete and ready for implementation\nSkill Used: Fly.io deployment skill (/sessions/blissful-busy-goodall/fly-io/SKILL.md)\nBase Configuration: Node.js/npm environment\nJob Queue Example: Bull with Redis\nInfrastructure: Fly.io with Upstash Redis\n\n================================================================================\n\nEND OF FILE INDEX\n\nStart with 00-START-HERE.txt if you're not sure where to begin.\n\n================================================================================\n"}, {"name": "README.md", "type": "text", "content": "# Fly.io Background Worker & Redis Setup\n\n## Overview\n\nThis directory contains complete documentation for adding a background worker process and Redis job queue to an existing Fly.io application. All guidance was developed following the Fly.io deployment skill.\n\n## Files in This Directory\n\n### 1. **fly.toml.before**\nThe original, basic Fly.io configuration file before any changes.\n- Shows a simple web-only setup\n- Single monolithic process\n- No Redis configuration\n- Single VM resource specification\n\n### 2. **fly.toml.after**\nThe modified configuration file with multi-process support.\n- Adds `[processes]` section defining web and worker processes\n- Updates `[http_service]` to route traffic only to web process\n- Splits `[[vm]]` specs for web and worker (can be sized independently)\n- Ready to use with Redis job queues\n\n**Key differences:**\n```toml\n# ADDED: Process definitions\n[processes]\n  web = \"npm start\"\n  worker = \"npm run worker\"\n\n# ADDED: Restrict HTTP to web only\n[http_service]\n  processes = [\"web\"]\n\n# CHANGED: Separate VM configs per process\n[[vm]]\n  processes = [\"web\"]\n  ...\n\n[[vm]]\n  processes = [\"worker\"]\n  ...\n```\n\n### 3. **CHANGES.md**\nA focused, detailed breakdown of each configuration change with explanations.\n- Document every change made to fly.toml\n- Show before/after for each modification\n- Includes the Redis setup command\n- Shows required application code changes\n- Provides a comparison table\n- Lists benefits and important notes\n\n**Use this file when:**\n- You want to understand exactly what changed\n- You need to apply these changes to your own app\n- You're reviewing the configuration with your team\n\n### 4. **transcript.md**\nThe complete, comprehensive guide documenting every step of the process.\n- Step-by-step instructions from verification to scaling\n- Full command listings\n- Expected outputs from each command\n- Code examples for worker setup\n- Troubleshooting section\n- Advanced patterns (multiple worker types, health checks, resource limits)\n- Deployment checklist\n- File changes summary\n\n**Use this file when:**\n- You're implementing this setup from scratch\n- You need detailed explanations of what each command does\n- You want to understand the complete workflow\n- You need troubleshooting guidance\n\n## Quick Start Summary\n\n### The Main Changes\n\n1. **Create Redis:**\n   ```bash\n   fly redis create\n   ```\n\n2. **Update fly.toml** (see fly.toml.after):\n   - Add `[processes]` section\n   - Update `[http_service]` with `processes = [\"web\"]`\n   - Split VM configs for web and worker\n\n3. **Update application code:**\n   - Create worker.js entry point\n   - Add `npm run worker` to package.json\n   - Connect to REDIS_URL environment variable\n\n4. **Deploy and scale:**\n   ```bash\n   fly deploy\n   fly scale count web=2 worker=1\n   ```\n\n## Architecture Overview\n\n### Before: Monolithic\n```\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502  Web Server (HTTP)      \u2502\n\u2502  + Background Jobs      \u2502\n\u2502  512MB RAM, 1 CPU       \u2502\n\u2502  (Blocks on long tasks) \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n```\n\n### After: Multi-Process\n```\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510    \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502  Web Process (x2)    \u2502    \u2502  Worker Process (x1) \u2502\n\u2502  - HTTP requests     \u2502    \u2502  - Job processing    \u2502\n\u2502  - 512MB RAM         \u2502    \u2502  - 256MB RAM         \u2502\n\u2502  - Fast responses    \u2502    \u2502  - Async queuing     \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518    \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n         \u2502                            \u2502\n         \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n                      \u2502\n                   Redis\n                (Job Queue)\n```\n\n## Key Concepts\n\n### Process Groups\nMultiple process types running the same Docker image with different startup commands.\n- `web = \"npm start\"` - Starts Express server\n- `worker = \"npm run worker\"` - Starts Bull job worker\n\n### Independent Scaling\nScale each process independently based on workload:\n```bash\nfly scale count web=4 worker=2  # 4 web, 2 workers\n```\n\n### Job Queuing\n- Web process enqueues jobs to Redis\n- Worker processes consume jobs from Redis\n- Non-blocking: HTTP requests return immediately\n- Reliable: Jobs can be retried with exponential backoff\n\n### Redis (Upstash)\n- Fully managed, no infrastructure to manage\n- Automatically provisioned in same region as app\n- Connection URL automatically set as `REDIS_URL` secret\n- Global read replicas for scaling\n\n## Implementation Checklist\n\n- [ ] Read CHANGES.md to understand all modifications\n- [ ] Review fly.toml.before and fly.toml.after\n- [ ] Back up your current fly.toml\n- [ ] Run `fly redis create`\n- [ ] Update your fly.toml with changes from fly.toml.after\n- [ ] Create worker.js with job processing logic\n- [ ] Update package.json with `npm run worker` script\n- [ ] Install Bull and Redis dependencies: `npm install bull redis`\n- [ ] Run `fly deploy`\n- [ ] Run `fly scale count web=2 worker=1`\n- [ ] Verify with `fly status` and `fly logs`\n- [ ] Test job queueing from your application\n\n## Deployment Commands\n\n```bash\n# Create Redis instance\nfly redis create\n\n# Deploy application with new config\nfly deploy\n\n# Scale processes\nfly scale count web=2 worker=1\n\n# Monitor\nfly status\nfly logs\nfly scale show\n\n# Troubleshoot\nfly ssh console\n```\n\n## File Manifest\n\n| File | Lines | Purpose |\n|------|-------|---------|\n| README.md | This file | Index and quick reference |\n| fly.toml.before | 28 | Original configuration |\n| fly.toml.after | 40 | Modified configuration |\n| CHANGES.md | 244 | Detailed change breakdown |\n| transcript.md | 494 | Complete implementation guide |\n\n## Next Steps\n\n1. **For immediate implementation:** Follow transcript.md step-by-step\n2. **For understanding changes:** Review CHANGES.md and compare fly.toml files\n3. **For troubleshooting:** Consult transcript.md troubleshooting section\n4. **For scaling:** Reference the \"Scale Process Groups\" section in transcript.md\n\n## Important Notes\n\n- The `REDIS_URL` environment variable is automatically set by `fly redis create`\n- Worker machines don't listen on HTTP; they only process jobs\n- Both web and worker run the same Docker image\n- Each process type can have independent resource specifications\n- The Dockerfile doesn't need to change\n\n## Common Questions\n\n**Q: Will my web requests be blocked by long-running jobs?**\nA: No. With separate processes, web machines handle HTTP while worker machines process jobs independently.\n\n**Q: Can I run different worker types?**\nA: Yes. You can define multiple process types (web, email-worker, image-worker, etc.) and scale each independently.\n\n**Q: What if a job fails?**\nA: Jobs can be configured with retries and exponential backoff. Implement error handling in your worker code.\n\n**Q: How do I monitor the job queue?**\nA: Bull provides a UI and API. You can monitor queue depth, failed jobs, and worker status.\n\n**Q: Can I use a different job queue library?**\nA: Yes. Bull is shown as an example, but you can use Bee-Queue, Agenda, Resque, Celery, or any Redis-based queue.\n\n---\n\n**Generated for:** Fly.io background worker and Redis job queue setup\n**Date:** 2026-03-22\n**Status:** Ready for implementation\n"}, {"name": "fly.toml.after", "type": "binary", "mime": "application/octet-stream", "data_uri": "data:application/octet-stream;base64,YXBwID0gIm15LWFwcCIKcHJpbWFyeV9yZWdpb24gPSAib3JkIgoKW2J1aWxkXQogIGRvY2tlcmZpbGUgPSAiRG9ja2VyZmlsZSIKCltkZXBsb3ldCiAgc3RyYXRlZ3kgPSAicm9sbGluZyIKCltlbnZdCiAgTk9ERV9FTlYgPSAicHJvZHVjdGlvbiIKICBQT1JUID0gIjgwODAiCgojIFByb2Nlc3MgZ3JvdXBzOiBydW4gYm90aCB3ZWIgc2VydmVyIGFuZCBiYWNrZ3JvdW5kIHdvcmtlcgpbcHJvY2Vzc2VzXQogIHdlYiA9ICJucG0gc3RhcnQiCiAgd29ya2VyID0gIm5wbSBydW4gd29ya2VyIgoKW2h0dHBfc2VydmljZV0KICBpbnRlcm5hbF9wb3J0ID0gODA4MAogIGZvcmNlX2h0dHBzID0gdHJ1ZQogIGF1dG9fc3RvcF9tYWNoaW5lcyA9ICJzdG9wIgogIGF1dG9fc3RhcnRfbWFjaGluZXMgPSB0cnVlCiAgbWluX21hY2hpbmVzX3J1bm5pbmcgPSAxCiAgIyBPbmx5IGV4cG9zZSBIVFRQIHRyYWZmaWMgdG8gd2ViIHByb2Nlc3MgZ3JvdXAKICBwcm9jZXNzZXMgPSBbIndlYiJdCgogIFtodHRwX3NlcnZpY2UuY29uY3VycmVuY3ldCiAgICB0eXBlID0gInJlcXVlc3RzIgogICAgaGFyZF9saW1pdCA9IDI1MAogICAgc29mdF9saW1pdCA9IDIwMAoKIyBWTSBzcGVjIGZvciB3ZWIgcHJvY2VzcwpbW3ZtXV0KICBwcm9jZXNzZXMgPSBbIndlYiJdCiAgbWVtb3J5ID0gIjUxMm1iIgogIGNwdV9raW5kID0gInNoYXJlZCIKICBjcHVzID0gMQoKIyBWTSBzcGVjIGZvciB3b3JrZXIgcHJvY2VzcyAoY2FuIGJlIHNpemVkIGRpZmZlcmVudGx5KQpbW3ZtXV0KICBwcm9jZXNzZXMgPSBbIndvcmtlciJdCiAgbWVtb3J5ID0gIjI1Nm1iIgogIGNwdV9raW5kID0gInNoYXJlZCIKICBjcHVzID0gMQo="}, {"name": "fly.toml.before", "type": "binary", "mime": "application/octet-stream", "data_uri": "data:application/octet-stream;base64,YXBwID0gIm15LWFwcCIKcHJpbWFyeV9yZWdpb24gPSAib3JkIgoKW2J1aWxkXQogIGRvY2tlcmZpbGUgPSAiRG9ja2VyZmlsZSIKCltkZXBsb3ldCiAgc3RyYXRlZ3kgPSAicm9sbGluZyIKCltlbnZdCiAgTk9ERV9FTlYgPSAicHJvZHVjdGlvbiIKICBQT1JUID0gIjgwODAiCgpbaHR0cF9zZXJ2aWNlXQogIGludGVybmFsX3BvcnQgPSA4MDgwCiAgZm9yY2VfaHR0cHMgPSB0cnVlCiAgYXV0b19zdG9wX21hY2hpbmVzID0gInN0b3AiCiAgYXV0b19zdGFydF9tYWNoaW5lcyA9IHRydWUKICBtaW5fbWFjaGluZXNfcnVubmluZyA9IDEKCiAgW2h0dHBfc2VydmljZS5jb25jdXJyZW5jeV0KICAgIHR5cGUgPSAicmVxdWVzdHMiCiAgICBoYXJkX2xpbWl0ID0gMjUwCiAgICBzb2Z0X2xpbWl0ID0gMjAwCgpbW3ZtXV0KICBtZW1vcnkgPSAiNTEybWIiCiAgY3B1X2tpbmQgPSAic2hhcmVkIgogIGNwdXMgPSAxCg=="}], "grading": {"eval_id": 2, "eval_name": "worker-redis", "configuration": "with_skill", "expectations": [{"text": "adds_process_groups", "passed": true, "evidence": "fly.toml.after shows [processes] section with 'web = npm start' and 'worker = npm run worker' definitions"}, {"text": "creates_redis", "passed": true, "evidence": "Transcript Step 3 explicitly shows 'fly redis create' command with interactive prompts for name, region, and eviction policy"}, {"text": "shows_independent_scaling", "passed": true, "evidence": "Transcript includes commands for independent scaling: 'fly scale count web=N worker=M' pattern documented in comprehensive worker-redis guide"}, {"text": "before_after_config", "passed": true, "evidence": "fly.toml.before shows original configuration without process groups; fly.toml.after shows updated configuration with [processes] section and separate vm specs"}]}}, {"id": "worker-redis-without_skill", "prompt": "I need to add a background worker process to my existing Fly.io app and also set up Redis for job queues.", "eval_id": 2, "outputs": [{"name": "fly-toml-after.toml", "type": "text", "content": "app = \"my-app\"\nprimary_region = \"lax\"\n\n[build]\ndockerfile = \"Dockerfile\"\n\n[env]\nNODE_ENV = \"production\"\nLOG_LEVEL = \"info\"\n\n# Web process with HTTP\n[[services]]\ninternal_port = 3000\nprocesses = [\"web\"]\nprotocol = \"tcp\"\n\n[services.http_options]\nh2_backend = true\n\n[[services.ports]]\nport = 80\nhandlers = [\"http\"]\nforce_https = true\n\n[[services.ports]]\nport = 443\nhandlers = [\"tls\", \"http\"]\n\n[[services.tcp_checks]]\ninterval = 10000\ntimeout = 5000\ngrace_period = \"5s\"\n\n# Process definitions\n[processes]\nweb = \"node index.js\"\nworker = \"node worker.js\"\n\n[deploy]\nrelease_command = \"node scripts/migrate.js\"\n"}, {"name": "fly-toml-before.toml", "type": "text", "content": "app = \"my-app\"\nprimary_region = \"lax\"\n\n[build]\ndockerfile = \"Dockerfile\"\n\n[env]\nNODE_ENV = \"production\"\nLOG_LEVEL = \"info\"\n\n[[services]]\ninternal_port = 3000\nprocesses = [\"app\"]\nprotocol = \"tcp\"\n\n[services.http_options]\nh2_backend = true\n\n[[services.ports]]\nport = 80\nhandlers = [\"http\"]\nforce_https = true\n\n[[services.ports]]\nport = 443\nhandlers = [\"tls\", \"http\"]\n\n[[services.tcp_checks]]\ninterval = 10000\ntimeout = 5000\ngrace_period = \"5s\"\n"}, {"name": "grading.json", "type": "text", "content": "{\n  \"eval_id\": 2,\n  \"eval_name\": \"worker-redis\",\n  \"configuration\": \"without_skill\",\n  \"expectations\": [\n    {\n      \"text\": \"adds_process_groups\",\n      \"passed\": true,\n      \"evidence\": \"fly-toml-after.toml contains [processes] section with: web = 'node index.js' and worker = 'node worker.js'. Services section updated to specify processes = ['web']\"\n    },\n    {\n      \"text\": \"creates_redis\",\n      \"passed\": true,\n      \"evidence\": \"Step 1 explicitly shows 'fly redis create' command with description: 'First, create a Redis database for your job queue'\"\n    },\n    {\n      \"text\": \"shows_independent_scaling\",\n      \"passed\": true,\n      \"evidence\": \"Step 4 demonstrates independent scaling: 'fly scale count web=1 worker=1' initially, then 'fly scale count worker=3' to show scaling workers independently from web process\"\n    },\n    {\n      \"text\": \"before_after_config\",\n      \"passed\": true,\n      \"evidence\": \"Two fly.toml files provided: fly-toml-before.toml shows original single-process config, fly-toml-after.toml shows updated config with [processes] section for web and worker\"\n    }\n  ]\n}\n"}], "grading": {"eval_id": 2, "eval_name": "worker-redis", "configuration": "without_skill", "expectations": [{"text": "adds_process_groups", "passed": true, "evidence": "fly-toml-after.toml contains [processes] section with: web = 'node index.js' and worker = 'node worker.js'. Services section updated to specify processes = ['web']"}, {"text": "creates_redis", "passed": true, "evidence": "Step 1 explicitly shows 'fly redis create' command with description: 'First, create a Redis database for your job queue'"}, {"text": "shows_independent_scaling", "passed": true, "evidence": "Step 4 demonstrates independent scaling: 'fly scale count web=1 worker=1' initially, then 'fly scale count worker=3' to show scaling workers independently from web process"}, {"text": "before_after_config", "passed": true, "evidence": "Two fly.toml files provided: fly-toml-before.toml shows original single-process config, fly-toml-after.toml shows updated config with [processes] section for web and worker"}]}}], "previous_feedback": {}, "previous_outputs": {}, "benchmark": {"skill_name": "fly-io", "iteration": 1, "timestamp": "2026-03-22", "evals": [{"eval_id": 0, "eval_name": "first-deploy", "results": {"with_skill": {"pass_rate": 1.0, "passed": 6, "total": 6, "tokens": 79200, "duration_seconds": 100.6}, "without_skill": {"pass_rate": 0.67, "passed": 4, "total": 6, "tokens": 70084, "duration_seconds": 535.3}}}, {"eval_id": 1, "eval_name": "troubleshoot-db", "results": {"with_skill": {"pass_rate": 1.0, "passed": 5, "total": 5, "tokens": 89506, "duration_seconds": 1292.0}, "without_skill": {"pass_rate": 1.0, "passed": 5, "total": 5, "tokens": 67165, "duration_seconds": 46.6}}}, {"eval_id": 2, "eval_name": "worker-redis", "results": {"with_skill": {"pass_rate": 1.0, "passed": 4, "total": 4, "tokens": 94612, "duration_seconds": 179.4}, "without_skill": {"pass_rate": 1.0, "passed": 4, "total": 4, "tokens": 66292, "duration_seconds": 37.5}}}], "summary": {"with_skill": {"pass_rate": 1.0, "mean_tokens": 87773, "mean_duration_seconds": 524.0}, "without_skill": {"pass_rate": 0.87, "mean_tokens": 67847, "mean_duration_seconds": 206.5}}}};
+
+    // ---- State ----
+    let feedbackMap = {};  // run_id -> feedback text
+    let currentIndex = 0;
+    let visitedRuns = new Set();
+
+    // ---- Init ----
+    async function init() {
+      // Load saved feedback from server — but only if this isn't a fresh
+      // iteration (indicated by previous_feedback being present). When
+      // previous feedback exists, the feedback.json on disk is stale from
+      // the prior iteration and should not pre-fill the textareas.
+      const hasPrevious = Object.keys(EMBEDDED_DATA.previous_feedback || {}).length > 0
+        || Object.keys(EMBEDDED_DATA.previous_outputs || {}).length > 0;
+      if (!hasPrevious) {
+        try {
+          const resp = await fetch("/api/feedback");
+          const data = await resp.json();
+          if (data.reviews) {
+            for (const r of data.reviews) feedbackMap[r.run_id] = r.feedback;
+          }
+        } catch { /* first run, no feedback yet */ }
+      }
+
+      document.getElementById("skill-name").textContent = EMBEDDED_DATA.skill_name;
+      showRun(0);
+
+      // Wire up feedback auto-save
+      const textarea = document.getElementById("feedback");
+      let saveTimeout = null;
+      textarea.addEventListener("input", () => {
+        clearTimeout(saveTimeout);
+        document.getElementById("feedback-status").textContent = "";
+        saveTimeout = setTimeout(() => saveCurrentFeedback(), 800);
+      });
+    }
+
+    // ---- Navigation ----
+    function navigate(delta) {
+      const newIndex = currentIndex + delta;
+      if (newIndex >= 0 && newIndex < EMBEDDED_DATA.runs.length) {
+        saveCurrentFeedback();
+        showRun(newIndex);
+      }
+    }
+
+    function updateNavButtons() {
+      document.getElementById("prev-btn").disabled = currentIndex === 0;
+      document.getElementById("next-btn").disabled =
+        currentIndex === EMBEDDED_DATA.runs.length - 1;
+    }
+
+    // ---- Show a run ----
+    function showRun(index) {
+      currentIndex = index;
+      const run = EMBEDDED_DATA.runs[index];
+
+      // Progress
+      document.getElementById("progress").textContent =
+        `${index + 1} of ${EMBEDDED_DATA.runs.length}`;
+
+      // Prompt
+      document.getElementById("prompt-text").textContent = run.prompt;
+
+      // Config badge
+      const badge = document.getElementById("config-badge");
+      const configMatch = run.id.match(/(with_skill|without_skill|new_skill|old_skill)/);
+      if (configMatch) {
+        const config = configMatch[1];
+        const isBaseline = config === "without_skill" || config === "old_skill";
+        badge.textContent = config.replace(/_/g, " ");
+        badge.className = "config-badge " + (isBaseline ? "config-baseline" : "config-primary");
+        badge.style.display = "inline-block";
+      } else {
+        badge.style.display = "none";
+      }
+
+      // Outputs
+      renderOutputs(run);
+
+      // Previous outputs
+      renderPrevOutputs(run);
+
+      // Grades
+      renderGrades(run);
+
+      // Previous feedback
+      const prevFb = (EMBEDDED_DATA.previous_feedback || {})[run.id];
+      const prevEl = document.getElementById("prev-feedback");
+      if (prevFb) {
+        document.getElementById("prev-feedback-text").textContent = prevFb;
+        prevEl.style.display = "block";
+      } else {
+        prevEl.style.display = "none";
+      }
+
+      // Feedback
+      document.getElementById("feedback").value = feedbackMap[run.id] || "";
+      document.getElementById("feedback-status").textContent = "";
+
+      updateNavButtons();
+
+      // Track visited runs and promote done button when all visited
+      visitedRuns.add(index);
+      const doneBtn = document.getElementById("done-btn");
+      if (visitedRuns.size >= EMBEDDED_DATA.runs.length) {
+        doneBtn.classList.add("ready");
+      }
+
+      // Scroll main content to top
+      document.querySelector(".main").scrollTop = 0;
+    }
+
+    // ---- Render outputs ----
+    function renderOutputs(run) {
+      const container = document.getElementById("outputs-body");
+      container.innerHTML = "";
+
+      const outputs = run.outputs || [];
+      if (outputs.length === 0) {
+        container.innerHTML = '<div class="empty-state">No output files</div>';
+        return;
+      }
+
+      for (const file of outputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        // Always show file header with download link
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const content = document.createElement("div");
+        content.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          content.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          content.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          content.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(content, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          content.appendChild(a);
+        } else if (file.type === "error") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          pre.style.color = "var(--red)";
+          content.appendChild(pre);
+        }
+
+        fileDiv.appendChild(content);
+        container.appendChild(fileDiv);
+      }
+    }
+
+    // ---- XLSX rendering via SheetJS ----
+    function renderXlsx(container, b64Data) {
+      try {
+        const raw = Uint8Array.from(atob(b64Data), c => c.charCodeAt(0));
+        const wb = XLSX.read(raw, { type: "array" });
+
+        for (let i = 0; i < wb.SheetNames.length; i++) {
+          const sheetName = wb.SheetNames[i];
+          const ws = wb.Sheets[sheetName];
+
+          if (wb.SheetNames.length > 1) {
+            const sheetLabel = document.createElement("div");
+            sheetLabel.style.cssText =
+              "font-weight:600; font-size:0.8rem; color:#b0aea5; margin-top:0.5rem; margin-bottom:0.25rem;";
+            sheetLabel.textContent = "Sheet: " + sheetName;
+            container.appendChild(sheetLabel);
+          }
+
+          const htmlStr = XLSX.utils.sheet_to_html(ws, { editable: false });
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = htmlStr;
+          container.appendChild(wrapper);
+        }
+      } catch (err) {
+        container.textContent = "Error rendering spreadsheet: " + err.message;
+      }
+    }
+
+    // ---- Grades ----
+    function renderGrades(run) {
+      const section = document.getElementById("grades-section");
+      const content = document.getElementById("grades-content");
+
+      if (!run.grading) {
+        section.style.display = "none";
+        return;
+      }
+
+      const grading = run.grading;
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("grades-arrow").classList.remove("open");
+
+      const summary = grading.summary || {};
+      const expectations = grading.expectations || [];
+
+      let html = '<div style="padding: 1rem;">';
+
+      // Summary line
+      const passRate = summary.pass_rate != null
+        ? Math.round(summary.pass_rate * 100) + "%"
+        : "?";
+      const badgeClass = summary.pass_rate >= 0.8 ? "grade-pass" : summary.pass_rate >= 0.5 ? "" : "grade-fail";
+      html += '<div class="grades-summary">';
+      html += '<span class="grade-badge ' + badgeClass + '">' + passRate + '</span>';
+      html += '<span>' + (summary.passed || 0) + ' passed, ' + (summary.failed || 0) + ' failed of ' + (summary.total || 0) + '</span>';
+      html += '</div>';
+
+      // Assertions list
+      html += '<ul class="assertion-list">';
+      for (const exp of expectations) {
+        const statusClass = exp.passed ? "pass" : "fail";
+        const statusIcon = exp.passed ? "\u2713" : "\u2717";
+        html += '<li class="assertion-item">';
+        html += '<span class="assertion-status ' + statusClass + '">' + statusIcon + '</span>';
+        html += '<span>' + escapeHtml(exp.text) + '</span>';
+        if (exp.evidence) {
+          html += '<div class="assertion-evidence">' + escapeHtml(exp.evidence) + '</div>';
+        }
+        html += '</li>';
+      }
+      html += '</ul>';
+
+      html += '</div>';
+      content.innerHTML = html;
+    }
+
+    function toggleGrades() {
+      const content = document.getElementById("grades-content");
+      const arrow = document.getElementById("grades-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Previous outputs (collapsible) ----
+    function renderPrevOutputs(run) {
+      const section = document.getElementById("prev-outputs-section");
+      const content = document.getElementById("prev-outputs-content");
+      const prevOutputs = (EMBEDDED_DATA.previous_outputs || {})[run.id];
+
+      if (!prevOutputs || prevOutputs.length === 0) {
+        section.style.display = "none";
+        return;
+      }
+
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("prev-outputs-arrow").classList.remove("open");
+
+      // Render the files into the content area
+      content.innerHTML = "";
+      const wrapper = document.createElement("div");
+      wrapper.style.padding = "1rem";
+
+      for (const file of prevOutputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const fc = document.createElement("div");
+        fc.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          fc.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          fc.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          fc.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(fc, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          fc.appendChild(a);
+        }
+
+        fileDiv.appendChild(fc);
+        wrapper.appendChild(fileDiv);
+      }
+
+      content.appendChild(wrapper);
+    }
+
+    function togglePrevOutputs() {
+      const content = document.getElementById("prev-outputs-content");
+      const arrow = document.getElementById("prev-outputs-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Feedback (saved to server -> feedback.json) ----
+    function saveCurrentFeedback() {
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // Build reviews array from map
+      const reviews = [];
+      for (const [run_id, feedback] of Object.entries(feedbackMap)) {
+        if (feedback.trim()) {
+          reviews.push({ run_id, feedback, timestamp: new Date().toISOString() });
+        }
+      }
+
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviews, status: "in_progress" }),
+      }).then(() => {
+        document.getElementById("feedback-status").textContent = "Saved";
+      }).catch(() => {
+        // Static mode or server unavailable — no-op on auto-save,
+        // feedback will be downloaded on final submit
+        document.getElementById("feedback-status").textContent = "Will download on submit";
+      });
+    }
+
+    // ---- Done ----
+    function showDoneDialog() {
+      // Save current textarea to feedbackMap (but don't POST yet)
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // POST once with status: complete — include ALL runs so the model
+      // can distinguish "no feedback" (looks good) from "not reviewed"
+      const reviews = [];
+      const ts = new Date().toISOString();
+      for (const r of EMBEDDED_DATA.runs) {
+        reviews.push({ run_id: r.id, feedback: feedbackMap[r.id] || "", timestamp: ts });
+      }
+      const payload = JSON.stringify({ reviews, status: "complete" }, null, 2);
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      }).then(() => {
+        document.getElementById("done-overlay").classList.add("visible");
+      }).catch(() => {
+        // Server not available (static mode) — download as file
+        const blob = new Blob([payload], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "feedback.json";
+        a.click();
+        URL.revokeObjectURL(url);
+        document.getElementById("done-overlay").classList.add("visible");
+      });
+    }
+
+    function closeDoneDialog() {
+      // Reset status back to in_progress
+      saveCurrentFeedback();
+      document.getElementById("done-overlay").classList.remove("visible");
+    }
+
+    // ---- Toast ----
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("visible");
+      setTimeout(() => toast.classList.remove("visible"), 2000);
+    }
+
+    // ---- Keyboard nav ----
+    document.addEventListener("keydown", (e) => {
+      // Don't capture when typing in textarea
+      if (e.target.tagName === "TEXTAREA") return;
+
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        navigate(-1);
+      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        navigate(1);
+      }
+    });
+
+    // ---- Util ----
+    function getDownloadUri(file) {
+      if (file.data_uri) return file.data_uri;
+      if (file.data_b64) return "data:application/octet-stream;base64," + file.data_b64;
+      if (file.type === "text") return "data:text/plain;charset=utf-8," + encodeURIComponent(file.content);
+      return "#";
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ---- View switching ----
+    function switchView(view) {
+      document.querySelectorAll(".view-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
+      document.querySelector(`[onclick="switchView('${view}')"]`).classList.add("active");
+      document.getElementById("panel-" + view).classList.add("active");
+    }
+
+    // ---- Benchmark rendering ----
+    function renderBenchmark() {
+      const data = EMBEDDED_DATA.benchmark;
+      if (!data) return;
+
+      // Show the tabs
+      document.getElementById("view-tabs").style.display = "flex";
+
+      const container = document.getElementById("benchmark-content");
+      const summary = data.run_summary || {};
+      const metadata = data.metadata || {};
+      const notes = data.notes || [];
+
+      let html = "";
+
+      // Header
+      html += "<h2 style='font-family: Poppins, sans-serif; margin-bottom: 0.5rem;'>Benchmark Results</h2>";
+      html += "<p style='color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.25rem;'>";
+      if (metadata.skill_name) html += "<strong>" + escapeHtml(metadata.skill_name) + "</strong> &mdash; ";
+      if (metadata.timestamp) html += metadata.timestamp + " &mdash; ";
+      if (metadata.evals_run) html += "Evals: " + metadata.evals_run.join(", ") + " &mdash; ";
+      html += (metadata.runs_per_configuration || "?") + " runs per configuration";
+      html += "</p>";
+
+      // Summary table
+      html += '<table class="benchmark-table">';
+
+      function fmtStat(stat, pct) {
+        if (!stat) return "—";
+        const suffix = pct ? "%" : "";
+        const m = pct ? (stat.mean * 100).toFixed(0) : stat.mean.toFixed(1);
+        const s = pct ? (stat.stddev * 100).toFixed(0) : stat.stddev.toFixed(1);
+        return m + suffix + " ± " + s + suffix;
+      }
+
+      function deltaClass(val) {
+        if (!val) return "";
+        const n = parseFloat(val);
+        if (n > 0) return "benchmark-delta-positive";
+        if (n < 0) return "benchmark-delta-negative";
+        return "";
+      }
+
+      // Discover config names dynamically (everything except "delta")
+      const configs = Object.keys(summary).filter(k => k !== "delta");
+      const configA = configs[0] || "config_a";
+      const configB = configs[1] || "config_b";
+      const labelA = configA.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const labelB = configB.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const a = summary[configA] || {};
+      const b = summary[configB] || {};
+      const delta = summary.delta || {};
+
+      html += "<thead><tr><th>Metric</th><th>" + escapeHtml(labelA) + "</th><th>" + escapeHtml(labelB) + "</th><th>Delta</th></tr></thead>";
+      html += "<tbody>";
+
+      html += "<tr><td><strong>Pass Rate</strong></td>";
+      html += "<td>" + fmtStat(a.pass_rate, true) + "</td>";
+      html += "<td>" + fmtStat(b.pass_rate, true) + "</td>";
+      html += '<td class="' + deltaClass(delta.pass_rate) + '">' + (delta.pass_rate || "—") + "</td></tr>";
+
+      // Time (only show row if data exists)
+      if (a.time_seconds || b.time_seconds) {
+        html += "<tr><td><strong>Time (s)</strong></td>";
+        html += "<td>" + fmtStat(a.time_seconds, false) + "</td>";
+        html += "<td>" + fmtStat(b.time_seconds, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.time_seconds) + '">' + (delta.time_seconds ? delta.time_seconds + "s" : "—") + "</td></tr>";
+      }
+
+      // Tokens (only show row if data exists)
+      if (a.tokens || b.tokens) {
+        html += "<tr><td><strong>Tokens</strong></td>";
+        html += "<td>" + fmtStat(a.tokens, false) + "</td>";
+        html += "<td>" + fmtStat(b.tokens, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.tokens) + '">' + (delta.tokens || "—") + "</td></tr>";
+      }
+
+      html += "</tbody></table>";
+
+      // Per-eval breakdown (if runs data available)
+      const runs = data.runs || [];
+      if (runs.length > 0) {
+        const evalIds = [...new Set(runs.map(r => r.eval_id))].sort((a, b) => a - b);
+
+        html += "<h3 style='font-family: Poppins, sans-serif; margin-bottom: 0.75rem;'>Per-Eval Breakdown</h3>";
+
+        const hasTime = runs.some(r => r.result && r.result.time_seconds != null);
+        const hasErrors = runs.some(r => r.result && r.result.errors > 0);
+
+        for (const evalId of evalIds) {
+          const evalRuns = runs.filter(r => r.eval_id === evalId);
+          const evalName = evalRuns[0] && evalRuns[0].eval_name ? evalRuns[0].eval_name : "Eval " + evalId;
+
+          html += "<h4 style='font-family: Poppins, sans-serif; margin: 1rem 0 0.5rem; color: var(--text);'>" + escapeHtml(evalName) + "</h4>";
+          html += '<table class="benchmark-table">';
+          html += "<thead><tr><th>Config</th><th>Run</th><th>Pass Rate</th>";
+          if (hasTime) html += "<th>Time (s)</th>";
+          if (hasErrors) html += "<th>Crashes During Execution</th>";
+          html += "</tr></thead>";
+          html += "<tbody>";
+
+          // Group by config and render with average rows
+          const configGroups = [...new Set(evalRuns.map(r => r.configuration))];
+          for (let ci = 0; ci < configGroups.length; ci++) {
+            const config = configGroups[ci];
+            const configRuns = evalRuns.filter(r => r.configuration === config);
+            if (configRuns.length === 0) continue;
+
+            const rowClass = ci === 0 ? "benchmark-row-with" : "benchmark-row-without";
+            const configLabel = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+            for (const run of configRuns) {
+              const r = run.result || {};
+              const prClass = r.pass_rate >= 0.8 ? "benchmark-delta-positive" : r.pass_rate < 0.5 ? "benchmark-delta-negative" : "";
+              html += '<tr class="' + rowClass + '">';
+              html += "<td>" + configLabel + "</td>";
+              html += "<td>" + run.run_number + "</td>";
+              html += '<td class="' + prClass + '">' + ((r.pass_rate || 0) * 100).toFixed(0) + "% (" + (r.passed || 0) + "/" + (r.total || 0) + ")</td>";
+              if (hasTime) html += "<td>" + (r.time_seconds != null ? r.time_seconds.toFixed(1) : "—") + "</td>";
+              if (hasErrors) html += "<td>" + (r.errors || 0) + "</td>";
+              html += "</tr>";
+            }
+
+            // Average row
+            const rates = configRuns.map(r => (r.result || {}).pass_rate || 0);
+            const avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
+            const avgPrClass = avgRate >= 0.8 ? "benchmark-delta-positive" : avgRate < 0.5 ? "benchmark-delta-negative" : "";
+            html += '<tr class="benchmark-row-avg ' + rowClass + '">';
+            html += "<td>" + configLabel + "</td>";
+            html += "<td>Avg</td>";
+            html += '<td class="' + avgPrClass + '">' + (avgRate * 100).toFixed(0) + "%</td>";
+            if (hasTime) {
+              const times = configRuns.map(r => (r.result || {}).time_seconds).filter(t => t != null);
+              html += "<td>" + (times.length ? (times.reduce((a, b) => a + b, 0) / times.length).toFixed(1) : "—") + "</td>";
+            }
+            if (hasErrors) html += "<td></td>";
+            html += "</tr>";
+          }
+          html += "</tbody></table>";
+
+          // Per-assertion detail for this eval
+          const runsWithExpectations = {};
+          for (const config of configGroups) {
+            runsWithExpectations[config] = evalRuns.filter(r => r.configuration === config && r.expectations && r.expectations.length > 0);
+          }
+          const hasAnyExpectations = Object.values(runsWithExpectations).some(runs => runs.length > 0);
+          if (hasAnyExpectations) {
+            // Collect all unique assertion texts across all configs
+            const allAssertions = [];
+            const seen = new Set();
+            for (const config of configGroups) {
+              for (const run of runsWithExpectations[config]) {
+                for (const exp of (run.expectations || [])) {
+                  if (!seen.has(exp.text)) {
+                    seen.add(exp.text);
+                    allAssertions.push(exp.text);
+                  }
+                }
+              }
+            }
+
+            html += '<table class="benchmark-table" style="margin-top: 0.5rem;">';
+            html += "<thead><tr><th>Assertion</th>";
+            for (const config of configGroups) {
+              const label = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+              html += "<th>" + escapeHtml(label) + "</th>";
+            }
+            html += "</tr></thead><tbody>";
+
+            for (const assertionText of allAssertions) {
+              html += "<tr><td>" + escapeHtml(assertionText) + "</td>";
+
+              for (const config of configGroups) {
+                html += "<td>";
+                for (const run of runsWithExpectations[config]) {
+                  const exp = (run.expectations || []).find(e => e.text === assertionText);
+                  if (exp) {
+                    const cls = exp.passed ? "benchmark-delta-positive" : "benchmark-delta-negative";
+                    const icon = exp.passed ? "\u2713" : "\u2717";
+                    html += '<span class="' + cls + '" title="Run ' + run.run_number + ': ' + escapeHtml(exp.evidence || "") + '">' + icon + "</span> ";
+                  } else {
+                    html += "— ";
+                  }
+                }
+                html += "</td>";
+              }
+              html += "</tr>";
+            }
+            html += "</tbody></table>";
+          }
+        }
+      }
+
+      // Notes
+      if (notes.length > 0) {
+        html += '<div class="benchmark-notes">';
+        html += "<h3>Analysis Notes</h3>";
+        html += "<ul>";
+        for (const note of notes) {
+          html += "<li>" + escapeHtml(note) + "</li>";
+        }
+        html += "</ul></div>";
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ---- Start ----
+    init();
+    renderBenchmark();
+  </script>
+</body>
+</html>
