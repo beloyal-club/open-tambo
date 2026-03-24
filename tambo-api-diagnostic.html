@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tambo API Connection Diagnostic</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; padding: 2rem; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin-bottom: 1.5rem; color: #38bdf8; }
+  h2 { font-size: 1.1rem; margin-bottom: 0.5rem; color: #94a3b8; }
+  .test-card { background: #1e293b; border-radius: 8px; padding: 1rem 1.2rem; margin-bottom: 1rem; border-left: 4px solid #475569; }
+  .test-card.pass { border-left-color: #22c55e; }
+  .test-card.fail { border-left-color: #ef4444; }
+  .test-card.warn { border-left-color: #f59e0b; }
+  .test-card.running { border-left-color: #38bdf8; }
+  .test-title { font-weight: 600; margin-bottom: 0.3rem; }
+  .test-detail { font-size: 0.85rem; color: #94a3b8; white-space: pre-wrap; word-break: break-all; }
+  .status { display: inline-block; font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; margin-left: 0.5rem; }
+  .status.pass { background: #166534; color: #86efac; }
+  .status.fail { background: #7f1d1d; color: #fca5a5; }
+  .status.warn { background: #78350f; color: #fcd34d; }
+  .status.running { background: #0c4a6e; color: #7dd3fc; }
+  button { background: #2563eb; color: white; border: none; padding: 0.6rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 0.95rem; margin-bottom: 1.5rem; }
+  button:hover { background: #1d4ed8; }
+  button:disabled { background: #475569; cursor: not-allowed; }
+  .summary { background: #1e293b; border-radius: 8px; padding: 1.2rem; margin-top: 1.5rem; }
+  .summary h2 { color: #38bdf8; }
+  .summary p { margin-top: 0.5rem; font-size: 0.9rem; line-height: 1.6; }
+  code { background: #334155; padding: 2px 6px; border-radius: 3px; font-size: 0.85rem; }
+  input { background: #334155; border: 1px solid #475569; color: #e2e8f0; padding: 0.4rem 0.6rem; border-radius: 4px; width: 100%; margin-bottom: 0.5rem; font-size: 0.9rem; }
+  label { font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 0.2rem; }
+  .input-group { margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+<h1>Tambo API Connection Diagnostic</h1>
+<p style="margin-bottom:1rem;color:#94a3b8;">Open this file in your browser while the Docker stack is running. It will test connectivity to your self-hosted Tambo API.</p>
+
+<div class="input-group">
+  <label>API URL (default: http://localhost:8261)</label>
+  <input id="apiUrl" value="http://localhost:8261" />
+</div>
+<div class="input-group">
+  <label>API Key (paste your tambo_ key from the dashboard)</label>
+  <input id="apiKey" placeholder="tambo_..." />
+</div>
+<div class="input-group">
+  <label>User Key (any string, e.g. anon-test-123)</label>
+  <input id="userKey" value="anon-diagnostic-test" />
+</div>
+
+<button id="runBtn" onclick="runAllTests()">Run Diagnostics</button>
+
+<div id="results"></div>
+<div id="summary" class="summary" style="display:none;"></div>
+
+<script>
+const results = [];
+
+function el(id) { return document.getElementById(id); }
+
+function addResult(id, title) {
+  const div = document.createElement('div');
+  div.className = 'test-card running';
+  div.id = 'test-' + id;
+  div.innerHTML = `<div class="test-title">${title} <span class="status running" id="status-${id}">RUNNING</span></div><div class="test-detail" id="detail-${id}">...</div>`;
+  el('results').appendChild(div);
+}
+
+function setResult(id, status, detail) {
+  const card = el('test-' + id);
+  const statusEl = el('status-' + id);
+  const detailEl = el('detail-' + id);
+  card.className = 'test-card ' + status;
+  statusEl.className = 'status ' + status;
+  statusEl.textContent = status.toUpperCase();
+  detailEl.textContent = detail;
+  results.push({ id, status, detail });
+}
+
+async function runAllTests() {
+  el('runBtn').disabled = true;
+  el('results').innerHTML = '';
+  el('summary').style.display = 'none';
+  results.length = 0;
+
+  const apiUrl = el('apiUrl').value.replace(/\/+$/, '');
+  const apiKey = el('apiKey').value.trim();
+  const userKey = el('userKey').value.trim();
+
+  // Test 1: Basic fetch to root
+  addResult('root', 'Test 1: Fetch API root (GET /)');
+  try {
+    const resp = await fetch(apiUrl + '/', { method: 'GET', mode: 'cors' });
+    const text = await resp.text();
+    setResult('root', 'pass', `Status: ${resp.status} ${resp.statusText}\nResponse: ${text.substring(0, 200)}\nCORS headers: access-control-allow-origin = ${resp.headers.get('access-control-allow-origin') || '(not present)'}`);
+  } catch (e) {
+    setResult('root', 'fail', `FETCH FAILED (network error - no response at all)\nError: ${e.message}\n\nThis means the browser cannot reach ${apiUrl} at all.\nPossible causes:\n- Docker container not running\n- Port 8261 not exposed\n- Windows firewall blocking\n- Try: docker ps to check containers`);
+  }
+
+  // Test 2: CORS preflight (OPTIONS)
+  addResult('cors', 'Test 2: CORS Preflight (OPTIONS with custom headers)');
+  try {
+    const resp = await fetch(apiUrl + '/v1/threads', {
+      method: 'OPTIONS',
+      headers: {
+        'Origin': window.location.origin,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'content-type,x-api-key'
+      },
+      mode: 'cors'
+    });
+    const allowOrigin = resp.headers.get('access-control-allow-origin');
+    const allowHeaders = resp.headers.get('access-control-allow-headers');
+    const allowMethods = resp.headers.get('access-control-allow-methods');
+    setResult('cors', allowOrigin ? 'pass' : 'warn',
+      `Status: ${resp.status}\naccess-control-allow-origin: ${allowOrigin || '(not present)'}\naccess-control-allow-headers: ${allowHeaders || '(not present)'}\naccess-control-allow-methods: ${allowMethods || '(not present)'}\n\n${!allowOrigin ? 'WARNING: No CORS allow-origin header. Browser will block cross-origin requests!' : 'CORS looks good.'}`);
+  } catch (e) {
+    setResult('cors', 'fail', `CORS preflight FAILED\nError: ${e.message}\n\nThe browser blocked the preflight OPTIONS request.\nThis is likely the cause of "Connection error." in bud-tambo.`);
+  }
+
+  // Test 3: Health endpoint
+  addResult('health', 'Test 3: Health Check (GET /health)');
+  try {
+    const resp = await fetch(apiUrl + '/health', { mode: 'cors' });
+    const data = await resp.json();
+    setResult('health', 'pass', `Status: ${resp.status}\nResponse: ${JSON.stringify(data, null, 2)}`);
+  } catch (e) {
+    setResult('health', 'fail', `Health check failed\nError: ${e.message}`);
+  }
+
+  // Test 4: GET threads with API key (the first call bud-tambo SDK would make)
+  addResult('threads', 'Test 4: GET /v1/threads (with API key + userKey)');
+  if (!apiKey) {
+    setResult('threads', 'warn', 'Skipped - no API key provided. Paste your tambo_ key above and re-run.');
+  } else {
+    try {
+      const url = `${apiUrl}/v1/threads?userKey=${encodeURIComponent(userKey)}`;
+      const resp = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'x-api-key': apiKey,
+          'Content-Type': 'application/json'
+        },
+        mode: 'cors'
+      });
+      const text = await resp.text();
+      let parsed;
+      try { parsed = JSON.parse(text); } catch { parsed = text; }
+      if (resp.status === 200) {
+        setResult('threads', 'pass', `Status: ${resp.status} OK\nResponse: ${JSON.stringify(parsed, null, 2).substring(0, 500)}\n\nAPI key is VALID and working!`);
+      } else if (resp.status === 403) {
+        setResult('threads', 'fail', `Status: 403 Forbidden\nResponse: ${JSON.stringify(parsed, null, 2)}\n\nThe API key is INVALID or was created with a different API_KEY_SECRET.\nYou need to create a new API key from the self-hosted dashboard (localhost:8260).`);
+      } else if (resp.status === 400) {
+        setResult('threads', 'warn', `Status: 400 Bad Request\nResponse: ${JSON.stringify(parsed, null, 2)}\n\nThe API received the request but rejected it. Check the error message above.`);
+      } else {
+        setResult('threads', 'warn', `Status: ${resp.status}\nResponse: ${JSON.stringify(parsed, null, 2).substring(0, 500)}`);
+      }
+    } catch (e) {
+      setResult('threads', 'fail', `FETCH FAILED for /v1/threads\nError: ${e.message}\n\nThis is the exact type of failure that causes "Connection error." in the SDK.`);
+    }
+  }
+
+  // Test 5: POST threads/runs (SSE streaming endpoint - what the SDK actually calls)
+  addResult('runs', 'Test 5: POST /v1/threads/runs (SSE streaming - SDK main endpoint)');
+  if (!apiKey) {
+    setResult('runs', 'warn', 'Skipped - no API key provided.');
+  } else {
+    try {
+      const resp = await fetch(`${apiUrl}/v1/threads/runs`, {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userKey: userKey,
+          message: { role: 'user', content: [{ type: 'text', text: 'test' }] },
+          thread: { contextKey: userKey }
+        }),
+        mode: 'cors'
+      });
+      // We expect either a streaming response or an error - both are fine
+      // The important thing is we GOT a response (not a network error)
+      const text = await resp.text();
+      if (resp.status >= 200 && resp.status < 300) {
+        setResult('runs', 'pass', `Status: ${resp.status} - SSE stream started!\nFirst 300 chars: ${text.substring(0, 300)}\n\nThe API is fully working for streaming requests.`);
+      } else {
+        setResult('runs', resp.status === 403 ? 'fail' : 'warn',
+          `Status: ${resp.status}\nResponse: ${text.substring(0, 500)}\n\nThe API responded (not a connection error). Status ${resp.status} can be debugged from the response above.`);
+      }
+    } catch (e) {
+      setResult('runs', 'fail', `FETCH FAILED for streaming endpoint\nError: ${e.message}\n\nThis confirms the "Connection error." is happening at the network/CORS level for POST requests.`);
+    }
+  }
+
+  // Test 6: Check what bud-tambo's env vars resolve to
+  addResult('env', 'Test 6: Environment Variable Check');
+  setResult('env', 'warn',
+    `This page is served from: ${window.location.origin}\nAPI URL configured: ${apiUrl}\n\nIMPORTANT: In bud-tambo, NEXT_PUBLIC_TAMBO_URL is baked at BUILD TIME.\nIf you changed .env.local, you MUST restart the dev server:\n  1. Stop bud-tambo (Ctrl+C)\n  2. Run: npm run dev (or next dev)\n\nAlso verify .env.local has:\n  NEXT_PUBLIC_TAMBO_URL=http://localhost:8261\n  NEXT_PUBLIC_TAMBO_API_KEY=tambo_...  (key from self-hosted dashboard)`);
+
+  // Show summary
+  showSummary();
+  el('runBtn').disabled = false;
+}
+
+function showSummary() {
+  const fails = results.filter(r => r.status === 'fail');
+  const passes = results.filter(r => r.status === 'pass');
+  const warns = results.filter(r => r.status === 'warn');
+
+  let html = '<h2>Diagnosis Summary</h2>';
+
+  if (fails.length === 0 && passes.length >= 4) {
+    html += '<p style="color:#22c55e;">All tests passed! The API connection is working from the browser.</p>';
+    html += '<p>If bud-tambo still shows "Connection error", the most likely cause is:</p>';
+    html += '<p>1. <strong>Dev server not restarted</strong> after changing <code>.env.local</code> — NEXT_PUBLIC_ vars are baked at startup</p>';
+    html += '<p>2. <strong>SDK version mismatch</strong> — bud-tambo uses <code>@tambo-ai/typescript-sdk@0.93.1</code> but the self-hosted API was built with <code>0.94.0</code>. Try updating: <code>npm install @tambo-ai/react@latest @tambo-ai/typescript-sdk@latest</code></p>';
+  } else if (fails.some(r => r.id === 'root')) {
+    html += '<p style="color:#ef4444;">Cannot reach the API at all.</p>';
+    html += '<p>Fix: Make sure Docker containers are running:</p>';
+    html += '<p><code>cd C:\\Users\\Perkl\\open-tambo\\tambo</code></p>';
+    html += '<p><code>docker compose --env-file docker.env ps</code></p>';
+    html += '<p>If containers are not running: <code>docker compose --env-file docker.env up -d</code></p>';
+  } else if (fails.some(r => r.id === 'cors')) {
+    html += '<p style="color:#ef4444;">CORS is blocking browser requests.</p>';
+    html += '<p>The API is reachable but the browser\'s CORS preflight is being rejected.</p>';
+    html += '<p>This can happen if Helmet middleware is interfering. Fix options:</p>';
+    html += '<p>1. Set <code>NODE_ENV=development</code> in docker.env (less restrictive CSP)</p>';
+    html += '<p>2. Rebuild the API: <code>docker compose --env-file docker.env up -d --build api</code></p>';
+  } else if (fails.some(r => r.id === 'threads')) {
+    html += '<p style="color:#ef4444;">API key is invalid.</p>';
+    html += '<p>Your tambo_ API key was likely created with the hosted Tambo Cloud, not your self-hosted instance.</p>';
+    html += '<p>Fix: Log into <code>http://localhost:8260</code>, create a new project, and copy the new API key into bud-tambo\'s <code>.env.local</code>.</p>';
+  }
+
+  html += '<p style="margin-top:1rem;color:#94a3b8;font-size:0.85rem;">Tests passed: ' + passes.length + ' | Failed: ' + fails.length + ' | Warnings: ' + warns.length + '</p>';
+
+  el('summary').innerHTML = html;
+  el('summary').style.display = 'block';
+}
+</script>
+</body>
+</html>
