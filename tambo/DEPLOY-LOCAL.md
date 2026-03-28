@@ -83,6 +83,20 @@ Sign in using your Google account.
 | Database CLI | `./scripts/cloud/tambo-psql.sh` |
 | Check status | `docker compose --env-file docker.env ps` |
 
+## Deploying to Fly.io
+
+All `fly` commands must be run from the `tambo/` directory, since the Dockerfile paths in `fly.toml` are relative.
+
+```bash
+cd tambo
+
+# Deploy the API
+fly deploy -c fly.toml
+
+# Deploy the web dashboard
+fly deploy -c fly.web.toml
+```
+
 ## Troubleshooting
 
 **Services won't start?**
