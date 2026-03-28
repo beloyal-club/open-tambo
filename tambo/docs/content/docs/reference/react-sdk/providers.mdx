@@ -1,0 +1,387 @@
+---
+title: React SDK Providers
+description: Reference for TamboProvider and other provider components used to configure Tambo in your React application.
+---
+
+Provider components configure Tambo functionality and make hooks available throughout your component tree.
+
+## TamboProvider
+
+The main provider that wraps your application and provides access to the Tambo API. This is the primary way to integrate Tambo into your React app.
+
+```tsx
+import { TamboProvider } from "@tambo-ai/react";
+
+function App() {
+  return (
+    <TamboProvider
+      apiKey={process.env.NEXT_PUBLIC_TAMBO_API_KEY}
+      userKey={userId}
+      components={myComponents}
+      tools={myTools}
+    >
+      <YourApp />
+    </TamboProvider>
+  );
+}
+```
+
+### Props
+
+| Prop                        | Type                                             | Required | Description                                                            |
+| --------------------------- | ------------------------------------------------ | -------- | ---------------------------------------------------------------------- |
+| `apiKey`                    | `string`                                         | Yes      | Your Tambo API key                                                     |
+| `userToken`                 | `string`                                         | No\*     | OAuth token for user authentication                                    |
+| `userKey`                   | `string`                                         | No\*     | Unique identifier for the current user                                 |
+| `tamboUrl`                  | `string`                                         | No       | Custom Tambo API URL                                                   |
+| `environment`               | `string`                                         | No       | Environment name                                                       |
+| `components`                | `TamboComponent[]`                               | No       | Components to register                                                 |
+| `tools`                     | `TamboTool[]`                                    | No       | Tools to register                                                      |
+| `mcpServers`                | `(McpServerInfo \| string)[]`                    | No       | MCP servers to connect                                                 |
+| `contextHelpers`            | `ContextHelpers`                                 | No       | Context helper functions                                               |
+| `onCallUnregisteredTool`    | `(toolName: string) => void`                     | No       | Callback for unregistered tool calls                                   |
+| `resources`                 | `ListResourceItem[]`                             | No       | Static resources for MCP                                               |
+| `listResources`             | `(query: string) => Promise<ListResourceItem[]>` | No       | Dynamic resource listing                                               |
+| `getResource`               | `(uri: string) => Promise<ReadResourceResult>`   | No       | Resource content resolver                                              |
+| `initialMessages`           | `InitialInputMessage[]`                          | No       | Messages to seed new threads with, displayed before the first API call |
+| `autoGenerateThreadName`    | `boolean`                                        | No       | Auto-generate thread names after a message threshold (default: `true`) |
+| `autoGenerateNameThreshold` | `number`                                         | No       | Messages before auto-generating a thread name (default: `3`)           |
+
+\*Exactly one of `userToken` or `userKey` is required to identify the current user.
+
+<Callout type="info" title="userKey vs contextKey">
+  Threads are scoped per user. The user identity comes from either `userKey` or
+  the user derived from `userToken`. This replaces `contextKey` from the current
+  SDK. The `userKey` is a unique identifier for the user, such as a user ID from
+  your authentication system.
+</Callout>
+
+### Example with All Options
+
+```tsx
+import { TamboProvider, defineTool } from "@tambo-ai/react";
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
+
+const components = [
+  {
+    name: "WeatherCard",
+    description: "Displays weather information",
+    component: WeatherCard,
+    propsSchema: zodToJsonSchema(
+      z.object({
+        city: z.string(),
+        temperature: z.number(),
+      }),
+    ),
+  },
+];
+
+const tools = [
+  defineTool({
+    name: "get_weather",
+    description: "Fetch weather for a city",
+    tool: async ({ city }) => fetchWeather(city),
+    inputSchema: z.object({ city: z.string() }),
+    outputSchema: z.object({ temperature: z.number() }),
+  }),
+];
+
+<TamboProvider
+  apiKey={process.env.NEXT_PUBLIC_TAMBO_API_KEY}
+  userKey={session.user.id}
+  components={components}
+  tools={tools}
+  contextHelpers={{
+    currentPage: () => ({ url: window.location.href }),
+  }}
+>
+  <App />
+</TamboProvider>;
+```
+
+### Provider Hierarchy
+
+`TamboProvider` internally composes several providers in this order:
+
+1. `TamboClientProvider` - API client and authentication
+2. `TamboRegistryProvider` - Component and tool registration
+3. `TamboContextHelpersProvider` - Context helper management
+4. `TamboContextAttachmentProvider` - Context attachment state
+5. `TamboInteractableProvider` - Interactable component tracking
+6. `TamboConfigContext` - Configuration (userKey, etc.)
+7. `TamboStreamProvider` - Streaming state management
+8. `TamboThreadInputProvider` - Shared input state
+
+## TamboStubProvider
+
+A stub provider for testing and development that doesn't require API connectivity.
+
+```tsx
+import { TamboStubProvider } from "@tambo-ai/react";
+
+function TestApp() {
+  return (
+    <TamboStubProvider
+      thread={{
+        messages: [
+          {
+            id: "1",
+            role: "assistant",
+            content: [
+              {
+                type: "component",
+                id: "comp-1",
+                name: "WeatherCard",
+                props: { city: "Seattle", temperature: 65 },
+              },
+            ],
+          },
+        ],
+      }}
+      components={myComponents}
+    >
+      <YourComponent />
+    </TamboStubProvider>
+  );
+}
+```
+
+### Props
+
+| Prop               | Type                                                    | Description                                                       |
+| ------------------ | ------------------------------------------------------- | ----------------------------------------------------------------- |
+| `thread`           | `TamboThread \| { messages: TamboThreadMessage[] }`     | Thread data to display                                            |
+| `threadId`         | `string`                                                | Optional thread ID (defaults to `"stub_thread"`)                  |
+| `components`       | `TamboComponent[]`                                      | Components to register                                            |
+| `tools`            | `TamboTool[]`                                           | Tools to register                                                 |
+| `userKey`          | `string`                                                | User key for the config context                                   |
+| `inputValue`       | `string`                                                | Initial input value for the thread input (defaults to `""`)       |
+| `isStreaming`      | `boolean`                                               | Simulate streaming state (defaults to `false`)                    |
+| `onSubmit`         | `() => Promise<{ threadId: string }>`                   | Override for the submit function (no-op by default)               |
+| `onSetValue`       | `(value: string \| ((prev: string) => string)) => void` | Override for the setValue function                                |
+| `onStartNewThread` | `() => string`                                          | Override for startNewThread (returns a random stub ID by default) |
+| `onSwitchThread`   | `(threadId: string \| null) => void`                    | Override for switchThread                                         |
+| `onInitThread`     | `(threadId: string) => void`                            | Override for initThread                                           |
+
+## TamboThreadInputProvider
+
+Provides shared input state across components. This is included in `TamboProvider` but can be used standalone for custom setups.
+
+```tsx
+import { TamboThreadInputProvider } from "@tambo-ai/react";
+
+// Usually not needed directly - included in TamboProvider
+<TamboThreadInputProvider>
+  <InputComponents />
+</TamboThreadInputProvider>;
+```
+
+The shared input state allows features like suggestions to update the input field directly, enabling seamless integration between different UI components.
+
+## ComponentRenderer
+
+Renders an AI-generated component from the registry based on a `TamboComponentContent` block. Use this in custom message renderers to display components the AI creates.
+
+`ComponentRenderer` looks up the component by name in the registry, parses props (handling partial JSON during streaming), validates props against the component's schema, and wraps the result with `ComponentContentProvider` so hooks like `useTamboComponentState` and `useTamboStreamStatus` work inside the rendered component.
+
+```tsx
+import { ComponentRenderer } from "@tambo-ai/react";
+import type { TamboThreadMessage } from "@tambo-ai/react";
+
+function MessageRenderer({
+  message,
+  threadId,
+}: {
+  message: TamboThreadMessage;
+  threadId: string;
+}) {
+  return (
+    <>
+      {message.content.map((block, i) => {
+        if (block.type === "text") {
+          return <p key={`${message.id}:${i}`}>{block.text}</p>;
+        }
+        if (block.type === "component") {
+          return (
+            <ComponentRenderer
+              key={block.id}
+              content={block}
+              threadId={threadId}
+              messageId={message.id}
+              fallback={<div>Unknown component: {block.name}</div>}
+            />
+          );
+        }
+        return null;
+      })}
+    </>
+  );
+}
+```
+
+### Props
+
+| Prop        | Type                                                                        | Required | Description                                            |
+| ----------- | --------------------------------------------------------------------------- | -------- | ------------------------------------------------------ |
+| `content`   | [`TamboComponentContent`](/reference/react-sdk/types#tambocomponentcontent) | Yes      | The component content block from a message             |
+| `threadId`  | `string`                                                                    | Yes      | Thread ID the component belongs to                     |
+| `messageId` | `string`                                                                    | Yes      | Message ID the component belongs to                    |
+| `fallback`  | `React.ReactNode`                                                           | No       | UI to render if the component is not found in registry |
+
+<Callout type="info">
+  Use `content.id` as the React `key` to preserve component identity across
+  re-renders during streaming.
+</Callout>
+
+## TamboMessageProvider
+
+Wraps components to provide message context. This enables hooks like `useTamboCurrentMessage` and `useTamboCurrentComponent` to access the message that triggered the component.
+
+You only need this directly when building a custom message rendering pipeline. The built-in UI components handle this automatically.
+
+```tsx
+import { TamboMessageProvider, ComponentRenderer } from "@tambo-ai/react";
+import type { TamboThreadMessage } from "@tambo-ai/react";
+
+function CustomMessageList({
+  messages,
+  threadId,
+}: {
+  messages: TamboThreadMessage[];
+  threadId: string;
+}) {
+  return (
+    <>
+      {messages.map((message) => (
+        <TamboMessageProvider key={message.id} message={message}>
+          {message.content.map((block) => {
+            if (block.type === "component") {
+              return (
+                <ComponentRenderer
+                  key={block.id}
+                  content={block}
+                  threadId={threadId}
+                  messageId={message.id}
+                />
+              );
+            }
+            return null;
+          })}
+        </TamboMessageProvider>
+      ))}
+    </>
+  );
+}
+```
+
+### Props
+
+| Prop                   | Type                                                                  | Required | Description                                                                         |
+| ---------------------- | --------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------- |
+| `message`              | [`TamboThreadMessage`](/reference/react-sdk/types#tambothreadmessage) | Yes      | The message to provide as context                                                   |
+| `interactableMetadata` | `InteractableMetadata`                                                | No       | Metadata for interactable components (set automatically by `withTamboInteractable`) |
+| `children`             | `React.ReactNode`                                                     | Yes      | Components that need access to message context                                      |
+
+## ComponentContentProvider
+
+Provides component instance metadata (component ID, thread ID, message ID, component name) to child components. This is used internally by `ComponentRenderer` and enables hooks like `useTamboComponentState`, `useTamboStreamStatus`, and `useComponentContent`.
+
+You typically don't use this directly — `ComponentRenderer` wraps rendered components with it automatically.
+
+```tsx
+import { ComponentContentProvider } from "@tambo-ai/react";
+
+// Only needed for custom rendering pipelines
+<ComponentContentProvider
+  componentId="comp-abc123"
+  threadId="thread-xyz"
+  messageId="msg-456"
+  componentName="WeatherCard"
+>
+  <WeatherCard city="Seattle" temperature={65} />
+</ComponentContentProvider>;
+```
+
+### Props
+
+| Prop            | Type              | Required | Description                                              |
+| --------------- | ----------------- | -------- | -------------------------------------------------------- |
+| `componentId`   | `string`          | Yes      | Unique instance ID for the component                     |
+| `threadId`      | `string`          | Yes      | Thread the component belongs to                          |
+| `messageId`     | `string`          | Yes      | Message the component belongs to                         |
+| `componentName` | `string`          | Yes      | Registered component name                                |
+| `children`      | `React.ReactNode` | Yes      | Components that need access to component content context |
+
+## Re-exported Providers
+
+The following providers are re-exported from the base SDK for advanced use cases:
+
+### TamboClientProvider
+
+Provides the API client and authentication context.
+
+```tsx
+import { TamboClientProvider } from "@tambo-ai/react";
+
+<TamboClientProvider
+  apiKey={process.env.NEXT_PUBLIC_TAMBO_API_KEY}
+  tamboUrl="https://api.tambo.co"
+>
+  <App />
+</TamboClientProvider>;
+```
+
+### TamboRegistryProvider
+
+Manages component and tool registration.
+
+```tsx
+import { TamboRegistryProvider } from "@tambo-ai/react";
+
+<TamboRegistryProvider
+  components={components}
+  tools={tools}
+  mcpServers={mcpServers}
+>
+  <App />
+</TamboRegistryProvider>;
+```
+
+### TamboContextHelpersProvider
+
+Manages context helpers that provide additional information to the AI.
+
+```tsx
+import { TamboContextHelpersProvider } from "@tambo-ai/react";
+
+<TamboContextHelpersProvider
+  contextHelpers={{
+    currentPage: () => ({ url: window.location.href }),
+  }}
+>
+  <App />
+</TamboContextHelpersProvider>;
+```
+
+## Configuration Hook
+
+### useTamboConfig
+
+Access the configuration from the provider.
+
+```tsx
+import { useTamboConfig } from "@tambo-ai/react";
+
+function MyComponent() {
+  const { userKey } = useTamboConfig();
+
+  return <div>User: {userKey}</div>;
+}
+```
+
+### Return Values
+
+| Value     | Type     | Description                    |
+| --------- | -------- | ------------------------------ |
+| `userKey` | `string` | The user key from the provider |

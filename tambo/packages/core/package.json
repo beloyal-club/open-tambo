@@ -1,0 +1,42 @@
+{
+  "name": "@tambo-ai-cloud/core",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    "import": "./src/index.ts"
+  },
+  "main": "./src/index.ts",
+  "files": [
+    "src",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "check-types": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "jest",
+    "test:cov": "jest --coverage",
+    "test:watch": "jest --watch"
+  },
+  "devDependencies": {
+    "@tambo-ai/eslint-config": "*",
+    "@tambo-ai/typescript-config": "*",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.19.15",
+    "jest": "^30.3.0",
+    "prettier-2": "npm:prettier@^2",
+    "ts-jest": "^29.4.6",
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.25.1"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "jose": "^5.10.0",
+    "openai": "^6.16.0",
+    "resend": "^6.9.1"
+  }
+}

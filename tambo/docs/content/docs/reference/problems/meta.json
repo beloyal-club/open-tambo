@@ -1,0 +1,10 @@
+{
+  "title": "API Problems",
+  "pages": [
+    "validation",
+    "not-found",
+    "forbidden",
+    "conflict",
+    "endpoint-deprecated"
+  ]
+}

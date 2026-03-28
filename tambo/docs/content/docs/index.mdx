@@ -1,0 +1,221 @@
+---
+title: Generative UI toolkit for React
+description: Register components the Tambo agent renders based on user messages.
+icon: GraduationCap
+---
+
+import LearnMore from "@/components/learn-more";
+import { Box, Github, MessageCircleMore } from "lucide-react";
+
+Tambo is an open-source toolkit for building AI-powered React apps. Register your components, and the agent decides which one to render based on user messages.
+
+"Show me sales by region" renders your `<Chart>`. "Add a task" updates your `<TaskBoard>`. The agent picks the component and streams the props.
+
+<video
+  src="https://github.com/user-attachments/assets/8381d607-b878-4823-8b24-ecb8053bef23"
+  controls
+  muted
+  autoPlay
+  loop
+  style={{ width: "100%", borderRadius: "8px", marginTop: "16px" }}
+/>
+
+## What's included
+
+- **React SDK** — Hooks and providers for thread management, streaming, and component rendering
+- **Built-in agent** — No external framework required. Drop it into your app and go.
+- **Streaming and state** — Progressive prop updates, message history, error handling
+- **MCP support** — Connect to databases, APIs, and external systems via Model Context Protocol
+
+Self-host the backend or use Tambo Cloud for fast deployment.
+
+## How Tambo works
+
+Two component patterns, one toolkit.
+
+### Generative components
+
+Rendered once in response to a message. Use these for charts, data visualizations, summary cards—anything that displays a result.
+
+<video
+  src="https://github.com/user-attachments/assets/3bd340e7-e226-4151-ae40-aab9b3660d8b"
+  controls
+  muted
+  autoPlay
+  loop
+  style={{ width: "100%", borderRadius: "8px", marginTop: "16px" }}
+/>
+
+```tsx
+const components: TamboComponent[] = [
+  {
+    name: "Graph",
+    description: "Displays data as charts using Recharts library",
+    component: Graph,
+    propsSchema: z.object({
+      data: z.array(z.object({ name: z.string(), value: z.number() })),
+      type: z.enum(["line", "bar", "pie"]),
+    }),
+  },
+];
+```
+
+<LearnMore
+  title="Learn more about generative components"
+  description="Understand how to register and use components"
+  href="/concepts/generative-interfaces/generative-components"
+/>
+
+### Interactable components
+
+Persist on the page and update by ID across conversations. Use these for shopping carts, task boards, spreadsheets, dashboards. Anything users interact with over time.
+
+<video
+  src="https://github.com/user-attachments/assets/12d957cd-97f1-488e-911f-0ff900ef4062"
+  controls
+  muted
+  autoPlay
+  loop
+  style={{ width: "100%", borderRadius: "8px", marginTop: "16px" }}
+/>
+
+```tsx
+const InteractableNote = withTamboInteractable(Note, {
+  componentName: "Note",
+  description: "A note supporting title, content, and color modifications",
+  propsSchema: z.object({
+    title: z.string(),
+    content: z.string(),
+    color: z.enum(["white", "yellow", "blue", "green"]).optional(),
+  }),
+});
+```
+
+<LearnMore
+  title="Learn more about interactable components"
+  description="Build components that persist and update across conversations"
+  href="/concepts/generative-interfaces/interactable-components"
+/>
+
+## Core workflow
+
+### 1. Register your components
+
+Tell the agent which components it can use:
+
+```tsx
+import { TamboProvider } from "@tambo-ai/react";
+
+export function Home() {
+  return (
+    <TamboProvider
+      components={myTamboComponents}
+      tools={myTamboTools}
+      apiKey={tamboApiKey}
+    >
+      <MyAiApp />
+    </TamboProvider>
+  );
+}
+```
+
+For apps with signed-in users, pass a `userToken` to enable per-user auth. See [User Authentication](/concepts/user-authentication) for details.
+
+<LearnMore
+  title="Component registration"
+  description="Learn how to register components and tools"
+  href="/concepts/generative-interfaces"
+/>
+
+### 2. Use Tambo hooks
+
+Send messages and render responses:
+
+```tsx
+const { messages } = useTambo();
+const { value, setValue, submit, isPending } = useTamboThreadInput();
+
+// Render messages with components
+{
+  messages.map((message) => (
+    <div key={message.id}>
+      {Array.isArray(message.content) ? (
+        message.content.map((part, i) =>
+          part.type === "text" ? <p key={i}>{part.text}</p> : null,
+        )
+      ) : (
+        <p>{String(message.content)}</p>
+      )}
+      {message.renderedComponent}
+    </div>
+  ));
+}
+```
+
+<LearnMore
+  title="Send messages"
+  description="Learn how to send user messages and handle responses"
+  href="/concepts/conversation-storage"
+  icon={MessageCircleMore}
+/>
+
+### 3. Add MCP integrations
+
+Connect pre-built integrations or your own MCP servers:
+
+```tsx
+import { MCPTransport } from "@tambo-ai/react/mcp";
+
+const mcpServers = [
+  {
+    name: "filesystem",
+    url: "http://localhost:8261/mcp",
+    transport: MCPTransport.HTTP,
+  },
+];
+
+<TamboProvider components={components} mcpServers={mcpServers}>
+  <App />
+</TamboProvider>;
+```
+
+<video
+  src="https://github.com/user-attachments/assets/c7a13915-8fed-4758-be1b-30a60fad0cda"
+  controls
+  muted
+  autoPlay
+  loop
+  style={{ width: "100%", borderRadius: "8px", marginTop: "16px" }}
+/>
+
+<LearnMore
+  title="MCP integration"
+  description="Connect to external systems with Model Context Protocol"
+  href="/concepts/model-context-protocol"
+/>
+
+## Pre-built components
+
+Production-ready components you can install via CLI:
+
+<LearnMore
+  title="Component library"
+  description="Explore components for forms, charts, messaging, and more"
+  href="https://ui.tambo.co"
+  icon={Box}
+/>
+
+## Get started
+
+<LearnMore
+  title="Quickstart"
+  description="Get up and running in minutes"
+  href="/getting-started/quickstart"
+/>
+
+<LearnMore
+  title="GitHub"
+  description="Star the repo, open issues, contribute"
+  href="https://github.com/tambo-ai/tambo"
+  icon={Github}
+/>

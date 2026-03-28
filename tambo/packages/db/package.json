@@ -1,0 +1,43 @@
+{
+  "name": "@tambo-ai-cloud/db",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    "import": "./src/index.ts"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "src",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "check-types": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:check": "drizzle-kit check",
+    "db:studio": "drizzle-kit studio",
+    "clean": "rm -rf dist coverage"
+  },
+  "devDependencies": {
+    "@tambo-ai-cloud/backend": "*",
+    "@tambo-ai/eslint-config": "*",
+    "@tambo-ai/typescript-config": "*",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/pg": "^8.18.0",
+    "drizzle-kit": "^0.31.10"
+  },
+  "dependencies": {
+    "@tambo-ai-cloud/core": "*",
+    "drizzle-orm": "^0.45.1",
+    "jsonwebtoken": "^9.0.2",
+    "openai": "^6.16.0",
+    "pg": "^8.20.0",
+    "pg-protocol": "^1.13.0",
+    "superjson": "^2.2.6"
+  }
+}

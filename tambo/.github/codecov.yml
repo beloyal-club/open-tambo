@@ -1,0 +1,96 @@
+codecov:
+  require_ci_to_pass: true
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: 80%
+        threshold: 5%
+        paths:
+          - apps/api/**
+          - apps/web/**
+          - cli/**
+          - packages/backend/**
+          - packages/core/**
+          - packages/react-ui-base/**
+          - packages/ui-registry/**
+          - react-sdk/**
+          - showcase/**
+
+comment:
+  layout: "header, diff, files, components"
+  behavior: default
+  require_changes: true
+
+component_management:
+  default_rules:
+    statuses:
+      - type: project
+        target: auto
+
+  individual_components:
+    - component_id: api
+      name: API
+      paths:
+        - apps/api/**
+
+    - component_id: web
+      name: Web
+      paths:
+        - apps/web/**
+
+    - component_id: react-sdk
+      name: React SDK
+      paths:
+        - react-sdk/**
+
+    - component_id: cli
+      name: CLI
+      paths:
+        - cli/**
+
+    - component_id: core
+      name: Core
+      paths:
+        - packages/core/**
+
+    - component_id: backend
+      name: Backend
+      paths:
+        - packages/backend/**
+
+    - component_id: showcase
+      name: Showcase
+      paths:
+        - showcase/**
+
+    - component_id: react-ui-base
+      name: React UI Base
+      paths:
+        - packages/react-ui-base/**
+
+    - component_id: ui-registry
+      name: UI Registry
+      paths:
+        - packages/ui-registry/**
+
+ignore:
+  - ".github/**"
+  - "assets/**"
+  - "community/**"
+  - "devdocs/**"
+  - "docs/**"
+  - "plans/**"
+  - "supabase/**"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/test/**"
+  - "**/tests/**"
+  - "**/__tests__/**"
+  - "**/node_modules/**"
+  - "**/dist/**"

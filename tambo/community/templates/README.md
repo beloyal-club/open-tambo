@@ -1,0 +1,125 @@
+# Tambo Templates
+
+Starter templates for building AI-powered apps with Tambo.
+
+## Official Templates
+
+| Template                                                                         | Description         | Stack               |
+| -------------------------------------------------------------------------------- | ------------------- | ------------------- |
+| [tambo-template](https://github.com/tambo-ai/tambo-template)                     | Default starter     | Next.js + Tambo     |
+| [tambo-template-tanstack](https://github.com/tambo-ai/tambo-template-tanstack)   | TanStack Router     | Vite + TanStack     |
+| [analytics-template](https://github.com/tambo-ai/analytics-template)             | Analytics dashboard | Next.js + Charts    |
+| [demo-mobile-log](https://github.com/tambo-ai/demo-mobile-log)                   | Activity logger     | Expo + React Native |
+| [music-expo-demo](https://github.com/tambo-ai/music-expo-demo)                   | Music companion     | Expo + React Native |
+| [betterauth-tambo-example](https://github.com/tambo-ai/betterauth-tambo-example) | Auth integration    | BetterAuth          |
+
+## Contributing a Template
+
+We have a high quality bar for merging templates. Focus on quality over quantity.
+
+Want to add a template? Open a PR that adds a new folder to this directory.
+
+### PR Requirements
+
+Your PR must include:
+
+1. **A new folder** in `community/templates/` named after your template (e.g., `community/templates/remix-clerk-starter/`)
+2. **Working code** that runs with `npm install && npm run dev` from within the template folder
+3. **README.md** inside your template folder with:
+   - What the template demonstrates
+   - Setup instructions
+   - Screenshot or GIF (upload to GitHub by dragging into the PR, then use that link)
+4. **Video demo** - Link to a short video demo in the README and PR description. You can [upload videos directly to GitHub](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/attaching-files) by dragging into a comment, then copy the generated link.
+
+### Keep It Simple
+
+Templates should be focused and minimal:
+
+- **Starters, not showcases** - Templates should be minimal enough that someone can take it and build something completely different. If you've built a polished app with lots of demo UI, strip it down to the essentials before submitting.
+- **1-3 technologies** is ideal. A template showing "Next.js + Clerk + Tambo" is better than one with 8 different libraries.
+- **One tool per job** - pick ONE auth provider, ONE database, ONE styling solution. Templates with multiple options for the same thing will be rejected.
+- **Minimal dependencies** - only include what's necessary to demonstrate the integration.
+- **Small, readable files** - If your main App file is doing too much, break it up or simplify. Templates should be easy to understand at a glance.
+- **Clean code** - no commented-out code, no unused files, no placeholder TODOs, no hardcoded user names or demo data.
+
+### Code Quality
+
+Your template must include linting and type checking appropriate for its stack, and it must pass. Before submitting:
+
+```bash
+npm run lint      # Must pass with no errors
+npm run typecheck # Must pass with no errors (if using TypeScript)
+npm run build     # Must complete successfully
+```
+
+Templates should include:
+
+- **Linting configuration** - Include linting with sensible defaults for the technologies in your template (ESLint is recommended for JS/TS stacks). Most of the Tambo repo uses [our base config](https://github.com/tambo-ai/tambo/blob/main/packages/eslint-config/base.mjs) as a reference point, but templates are not required to use it. Anything materially looser in style/consistency is unlikely to be accepted.
+- **TypeScript strict mode** - Enable `"strict": true` in tsconfig.json
+- **No type errors** - Fix all TypeScript errors, don't use `@ts-ignore` or `any` as workarounds
+
+We'll run these checks during review. Templates with lint errors or type issues will be rejected.
+
+### Design Requirements
+
+Design quality should match our [official templates](https://github.com/tambo-ai/tambo-template). Or better. Use them as your reference for the visual bar we expect.
+
+### Tambo Integration
+
+We're not expecting a ton of Tambo code. Just **one example** that proves the integration works:
+
+- **Auth template** - show that auth works with Tambo
+- **Database template** - one component that can add or display records via AI
+- **Framework template** - existing Tambo components work and are styled correctly in that framework
+
+The video should show a conversation with the AI using your integration. Proper component/tool registration with clear descriptions is required.
+
+**No workarounds** - Your template must use Tambo's actual APIs correctly. If you run into issues getting components to render or tools to work, [open a bug issue](https://github.com/tambo-ai/tambo/issues/new) and we'll help. Don't hack around problems - templates that bypass Tambo's rendering system will be rejected.
+
+### README Quality
+
+Your template's README must include:
+
+- **One-sentence description** - what this template is for.
+- **Screenshot** - showing the app running with Tambo UI visible.
+- **Video link** - demonstrating the AI interaction.
+- **Prerequisites** - what accounts/API keys are needed (e.g., "You'll need a Clerk account").
+- **Setup steps** - numbered, copy-pasteable commands.
+- **What's included** - bullet list of the technologies and what they're used for.
+
+### What Gets Rejected
+
+- Lint errors or type checking failures
+- Missing ESLint or TypeScript configuration
+- Use of `@ts-ignore`, `any`, or disabled lint rules as workarounds
+- Kitchen-sink templates that try to include everything
+- Overcomplicated "showcase" apps disguised as starters
+- Workarounds that bypass Tambo's actual rendering or tool system
+- Broken or incomplete setups
+- Missing video demo
+- Poor documentation
+- Ugly or unstyled UI
+- Not responsive
+- Generic "todo app" without meaningful Tambo integration
+- Duplicating an integration we already have without adding something new
+
+### Template Folder Structure
+
+```
+community/templates/
+├── your-template-name/
+│   ├── README.md          # Setup instructions + screenshot
+│   ├── package.json
+│   ├── src/
+│   │   └── components/
+│   │       └── tambo/     # Tambo component directory
+│   └── ...
+```
+
+### Ideas for Templates
+
+- **Frameworks** - Remix, Expo, Astro, or other React frameworks
+- **Auth** - Clerk, Supabase Auth, NextAuth
+- **Database** - Prisma, Drizzle, Convex
+- **Backend** - tRPC, Hono
+- **Use cases** - Real-time apps, dashboards, specific domains

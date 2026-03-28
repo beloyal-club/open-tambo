@@ -1,0 +1,8 @@
+{
+  "extends": "../packages/typescript-config/base.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "noEmit": true
+  },
+  "include": ["*.ts", "**/*.ts", "*.mjs"]
+}

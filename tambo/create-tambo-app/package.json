@@ -1,0 +1,52 @@
+{
+  "name": "create-tambo-app",
+  "version": "0.3.2",
+  "description": "Create a new Tambo application",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tambo-ai/tambo.git",
+    "directory": "create-tambo-app"
+  },
+  "homepage": "https://tambo.co",
+  "module": "./dist/index.js",
+  "main": "./dist/index.js",
+  "bin": {
+    "create-tambo-app": "./dist/index.js"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "src",
+    "dist",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "clean": "rimraf dist"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "cross-spawn": "^7.0.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/cross-spawn": "^6.0.6",
+    "eslint": "^9.39.4",
+    "rimraf": "^6.1.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.1"
+  }
+}

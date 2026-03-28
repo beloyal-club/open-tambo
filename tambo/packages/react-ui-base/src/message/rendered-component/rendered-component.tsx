@@ -1,0 +1,55 @@
+import { mergeProps } from "@base-ui/react/merge-props";
+import { useRender } from "@base-ui/react/use-render";
+import * as React from "react";
+import { useMessageRootContext } from "../root/message-root-context";
+
+export interface MessageRenderedComponentRenderProps extends Record<
+  string,
+  unknown
+> {
+  slot: string;
+  hasRenderedComponent: boolean;
+  role: "user" | "assistant";
+}
+
+export type MessageRenderedComponentProps = useRender.ComponentProps<
+  "div",
+  MessageRenderedComponentRenderProps
+>;
+
+/**
+ * RenderedComponent base for displaying AI-generated components.
+ * Only renders for assistant messages with component content blocks.
+ */
+export const MessageRenderedComponent = React.forwardRef<
+  HTMLDivElement,
+  MessageRenderedComponentProps
+>(({ children, ...props }, ref) => {
+  const { message, role } = useMessageRootContext();
+
+  const hasComponent = message.content.some(
+    (block) =>
+      block.type === "component" &&
+      "renderedComponent" in block &&
+      block.renderedComponent,
+  );
+
+  const { render, ...componentProps } = props;
+  const renderProps: MessageRenderedComponentRenderProps = {
+    slot: "message-rendered-component-area",
+    hasRenderedComponent: hasComponent,
+    role,
+  };
+
+  return useRender({
+    defaultTagName: "div",
+    ref,
+    render,
+    enabled: role === "assistant" && hasComponent,
+    state: renderProps,
+    props: mergeProps(componentProps, {
+      children,
+    }),
+  });
+});
+MessageRenderedComponent.displayName = "Message.RenderedComponent";

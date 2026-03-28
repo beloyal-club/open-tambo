@@ -1,0 +1,12 @@
+{
+  "title": "Concepts",
+  "pages": [
+    "generative-interfaces",
+    "tools",
+    "additional-context",
+    "conversation-storage",
+    "agent-configuration",
+    "model-context-protocol",
+    "user-authentication"
+  ]
+}

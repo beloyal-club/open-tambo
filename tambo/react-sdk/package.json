@@ -1,0 +1,125 @@
+{
+  "name": "@tambo-ai/react",
+  "version": "1.2.4",
+  "description": "React client package for Tambo AI",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tambo-ai/tambo.git",
+    "directory": "react-sdk"
+  },
+  "homepage": "https://tambo.co",
+  "main": "./dist/index.js",
+  "module": "./esm/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "@tambo-ai/source": "./src/index.ts",
+      "import": "./esm/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./mcp": {
+      "@tambo-ai/source": "./src/mcp/index.ts",
+      "import": "./esm/mcp/index.js",
+      "require": "./dist/mcp/index.js",
+      "types": "./dist/mcp/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "esm",
+    "LICENSE"
+  ],
+  "volta": {
+    "extends": "../package.json"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "npm run build:cjs && npm run build:esm",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:esm": "tsc -p tsconfig.esm.json && tsc-esm-fix --target=esm",
+    "check-types": "tsc --noEmit",
+    "dev": "concurrently \"npm run dev:cjs\" \"npm run dev:esm\"",
+    "dev:cjs": "tsc -p tsconfig.cjs.json --watch",
+    "dev:esm": "tsc -p tsconfig.esm.json --watch",
+    "test": "jest --config jest.config.ts",
+    "format": "prettier --write .",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "format:lint": "npm run format && npm run lint:fix",
+    "prepare": "husky",
+    "clean": "rimraf dist esm coverage"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "peerDependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@types/react": "^18.0.0 || ^19.0.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "zod": "^3.25.76 || ^4",
+    "zod-to-json-schema": "^3.25.1"
+  },
+  "peerDependenciesMeta": {
+    "@modelcontextprotocol/sdk": {
+      "optional": true
+    },
+    "zod-to-json-schema": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@ag-ui/core": "^0.0.44",
+    "@tambo-ai/client": "0.1.0",
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@tambo-ai/typescript-sdk": "^0.94.0",
+    "@tanstack/react-query": "^5.90.16",
+    "fast-equals": "^6.0.0",
+    "partial-json": "^0.1.7",
+    "react-fast-compare": "^3.2.2",
+    "react-media-recorder": "^1.7.2",
+    "ts-node": "^10.9.2",
+    "use-debounce": "^10.0.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@tambo-ai/eslint-config": "*",
+    "@tambo-ai/typescript-config": "*",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/jest": "^30.0.0",
+    "@types/json-schema": "^7.0.15",
+    "@types/node": "^22.19.15",
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
+    "@valibot/to-json-schema": "^1.5.0",
+    "fast-json-patch": "^3.1.1",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.39.4",
+    "eslint-plugin-jsdoc": "^62.8.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^6.1.1",
+    "jest": "^30.3.0",
+    "jest-environment-jsdom": "^30.3.0",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.1",
+    "prettier-2": "npm:prettier@^2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ts-jest": "^29.4.6",
+    "tsc-esm-fix": "^3.1.2",
+    "typescript": "^5.9.3",
+    "type-fest": "^5.4.3",
+    "typescript-eslint": "^8.57.1",
+    "zod": "^3.25.76 || ^4",
+    "zod-to-json-schema": "^3.25.1"
+  }
+}

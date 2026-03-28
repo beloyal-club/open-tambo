@@ -1,0 +1,18 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "index",
+    "...getting-started",
+    "---Concepts---",
+    "...concepts",
+    "---Guides---",
+    "...guides",
+    "---Best Practices---",
+    "...best-practices",
+    "---Reference---",
+    "...reference",
+    "---Examples and Templates---",
+    "...examples-and-templates",
+    "...tambo-mcp-server"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "plugins": [{ "name": "next" }],
+    "types": [],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "customConditions": ["@tambo-ai/source"],
+    "allowJs": true,
+    "jsx": "preserve",
+    "noEmit": true
+  }
+}

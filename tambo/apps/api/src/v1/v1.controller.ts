@@ -1,0 +1,732 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+} from "@nestjs/common";
+import {
+  ApiOperation,
+  ApiParam,
+  ApiProduces,
+  ApiQuery,
+  ApiResponse,
+  ApiSecurity,
+  ApiTags,
+} from "@nestjs/swagger";
+import { Request, Response } from "express";
+import { ApiKeyGuard } from "../projects/guards/apikey.guard";
+import { BearerTokenGuard } from "../projects/guards/bearer-token.guard";
+import { V1ThreadInProjectGuard } from "./guards/v1-thread-in-project-guard";
+import { getV1ContextInfo } from "./utils/get-v1-context-info";
+import {
+  V1GetMessageResponseDto,
+  V1ListMessagesQueryDto,
+  V1ListMessagesResponseDto,
+} from "./dto/message.dto";
+import {
+  V1CancelRunResponseDto,
+  V1CreateRunDto,
+  V1CreateThreadWithRunDto,
+} from "./dto/run.dto";
+import {
+  UpdateComponentStateDto,
+  UpdateComponentStateResponseDto,
+} from "./dto/component-state.dto";
+import {
+  V1CreateThreadDto,
+  V1CreateThreadResponseDto,
+  V1GetThreadResponseDto,
+  V1ListThreadsQueryDto,
+  V1ListThreadsResponseDto,
+  V1UpdateThreadDto,
+  V1UpdateThreadResponseDto,
+} from "./dto/thread.dto";
+import { V1BaseEventDto } from "./dto/event.dto";
+import {
+  V1GenerateSuggestionsDto,
+  V1GenerateSuggestionsResponseDto,
+  V1ListSuggestionsQueryDto,
+  V1ListSuggestionsResponseDto,
+} from "./dto/suggestion.dto";
+import { V1Service } from "./v1.service";
+
+@ApiTags("v1")
+@ApiSecurity("apiKey")
+@ApiSecurity("bearer")
+@UseGuards(ApiKeyGuard, BearerTokenGuard)
+@Controller("v1")
+export class V1Controller {
+  private readonly logger = new Logger(V1Controller.name);
+
+  constructor(private readonly v1Service: V1Service) {}
+
+  // ==========================================
+  // Thread endpoints
+  // ==========================================
+
+  @Get("threads")
+  @ApiOperation({
+    summary: "List threads",
+    description:
+      "List all threads for the authenticated project. Supports cursor-based pagination and filtering by user key.",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "List of threads",
+    type: V1ListThreadsResponseDto,
+  })
+  async listThreads(
+    @Req() request: Request,
+    @Query() query: V1ListThreadsQueryDto,
+  ): Promise<V1ListThreadsResponseDto> {
+    const { projectId, contextKey } = getV1ContextInfo(request, query.userKey);
+    return await this.v1Service.listThreads(projectId, contextKey, query);
+  }
+
+  @Get("threads/:threadId")
+  @UseGuards(V1ThreadInProjectGuard)
+  @ApiOperation({
+    summary: "Get thread with messages",
+    description:
+      "Get a thread by ID with all its messages. The thread must belong to the authenticated project.",
+  })
+  @ApiParam({
+    name: "threadId",
+    description: "Thread ID",
+    example: "thr_abc123xyz",
+  })
+  @ApiQuery({
+    name: "userKey",
+    description: "Optional user key for thread organization",
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Thread with messages",
+    type: V1GetThreadResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Thread not found",
+  })
+  async getThread(
+    @Req() request: Request,
+    @Param("threadId") threadId: string,
+    @Query("userKey") userKey?: string,
+  ): Promise<V1GetThreadResponseDto> {
+    const { projectId, contextKey } = getV1ContextInfo(request, userKey);
+    return await this.v1Service.getThread(threadId, projectId, contextKey);
+  }
+
+  @Post("threads")
+  @ApiOperation({
+    summary: "Create empty thread",
+    description:
+      "Create a new empty thread. Note: initialMessages is not supported yet; create the thread first, then add messages via runs/message endpoints.",
+  })
+  @ApiResponse({
+    status: 201,
+    description: "Created thread",
+    type: V1CreateThreadResponseDto,
+  })
+  async createThread(
+    @Req() request: Request,
+    @Body() dto: V1CreateThreadDto,
+  ): Promise<V1CreateThreadResponseDto> {
+    const { projectId, contextKey } = getV1ContextInfo(request, dto.userKey);
+    return await this.v1Service.createThread(projectId, contextKey, dto);
+  }
+
+  @Patch("threads/:threadId")
+  @UseGuards(V1ThreadInProjectGuard)
+  @ApiOperation({
+    summary: "Update thread",
+    description:
+      "Update thread metadata such as name. Useful for manual thread renaming.",
+  })
+  @ApiParam({
+    name: "threadId",
+    description: "Thread ID",
+    example: "thr_abc123xyz",
+  })
+  @ApiQuery({
+    name: "userKey",
+    description: "Optional user key for thread organization",
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Updated thread",
+    type: V1UpdateThreadResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Thread not found",
+  })
+  async updateThread(
+    @Req() request: Request,
+    @Param("threadId") threadId: string,
+    @Body() dto: V1UpdateThreadDto,
+    @Query("userKey") userKey?: string,
+  ): Promise<V1UpdateThreadResponseDto> {
+    const { projectId, contextKey } = getV1ContextInfo(request, userKey);
+    return await this.v1Service.updateThread(
+      threadId,
+      projectId,
+      contextKey,
+      dto,
+    );
+  }
+
+  @Delete("threads/:threadId")
+  @UseGuards(V1ThreadInProjectGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: "Delete thread",
+    description:
+      "Delete a thread and all its messages. This action cannot be undone.",
+  })
+  @ApiParam({
+    name: "threadId",
+    description: "Thread ID",
+    example: "thr_abc123xyz",
+  })
+  @ApiQuery({
+    name: "userKey",
+    description:
+      "Identifier for a user in your system. Required if no bearer token is provided.",
+    required: false,
+  })
+  @ApiResponse({
+    status: 204,
+    description: "Thread deleted successfully",
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Thread not found",
+  })
+  async deleteThread(
+    @Req() request: Request,
+    @Param("threadId") threadId: string,
+    @Query("userKey") userKey?: string,
+  ): Promise<void> {
+    const { contextKey: _contextKey } = getV1ContextInfo(request, userKey);
+    await this.v1Service.deleteThread(threadId);
+  }
+
+  // ==========================================
+  // Message endpoints
+  // ==========================================
+
+  @Get("threads/:threadId/messages")
+  @UseGuards(V1ThreadInProjectGuard)
+  @ApiOperation({
+    summary: "List messages",
+    description:
+      "List messages in a thread. Supports cursor-based pagination and ordering.",
+  })
+  @ApiParam({
+    name: "threadId",
+    description: "Thread ID",
+    example: "thr_abc123xyz",
+  })
+  @ApiQuery({
+    name: "userKey",
+    description:
+      "Identifier for a user in your system. Required if no bearer token is provided.",
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: "List of messages",
+    type: V1ListMessagesResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Thread not found",
+  })
+  async listMessages(
+    @Req() request: Request,
+    @Param("threadId") threadId: string,
+    @Query() query: V1ListMessagesQueryDto,
+    @Query("userKey") userKey?: string,
+  ): Promise<V1ListMessagesResponseDto> {
+    const { contextKey: _contextKey } = getV1ContextInfo(request, userKey);
+    return await this.v1Service.listMessages(threadId, query);
+  }
+
+  @Get("threads/:threadId/messages/:messageId")
+  @UseGuards(V1ThreadInProjectGuard)
+  @ApiOperation({
+    summary: "Get message",
+    description: "Get a specific message by ID from a thread.",
+  })
+  @ApiParam({
+    name: "threadId",
+    description: "Thread ID",
+    example: "thr_abc123xyz",
+  })
+  @ApiParam({
+    name: "messageId",
+    description: "Message ID",
+    example: "msg_xyz789abc",
+  })
+  @ApiQuery({
+    name: "userKey",
+    description:
+      "Identifier for a user in your system. Required if no bearer token is provided.",
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Message details",
+    type: V1GetMessageResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Message not found",
+  })
+  async getMessage(
+    @Req() request: Request,
+    @Param("threadId") threadId: string,
+    @Param("messageId") messageId: string,
+    @Query("userKey") userKey?: string,
+  ): Promise<V1GetMessageResponseDto> {
+    const { contextKey: _contextKey } = getV1ContextInfo(request, userKey);
+    return await this.v1Service.getMessage(threadId, messageId);
+  }
+
+  // ==========================================
+  // Run endpoints
+  // ==========================================
+
+  @Post("threads/runs")
+  @ApiOperation({
+    summary: "Create thread with run (SSE)",
+    description:
+      "Creates a new thread and immediately starts a streaming run. Returns an SSE stream of AG-UI events.",
+  })
+  @ApiProduces("text/event-stream")
+  @ApiResponse({
+    status: 200,
+    description:
+      "SSE stream of AG-UI events. Each event is sent as 'data: <json>\\n\\n' where <json> is a BaseEvent object.",
+    type: V1BaseEventDto,
+    headers: {
+      "X-Thread-Id": {
+        description: "The created thread ID",
+        schema: { type: "string" },
+      },
+      "X-Run-Id": {
+        description: "The created run ID",
+        schema: { type: "string" },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 409,
+    description: "Concurrent run conflict",
+  })
+  async createThreadWithRun(
+    @Req() request: Request,
+    @Body() dto: V1CreateThreadWithRunDto,
+    @Res() response: Response,
+  ): Promise<void> {
+    const { projectId, contextKey, sdkVersion } = getV1ContextInfo(
+      request,
+      dto.thread?.userKey,
+    );
+
+    // Create thread first
+    const thread = await this.v1Service.createThread(projectId, contextKey, {
+      userKey: dto.thread?.userKey,
+      metadata: dto.threadMetadata ?? dto.thread?.metadata,
+      initialMessages: dto.thread?.initialMessages,
+    });
+
+    // Start run (handles concurrency atomically)
+    const startResult = await this.v1Service.startRun(thread.id, dto);
+    if (!startResult.success) {
+      throw startResult.error;
+    }
+
+    // Set SSE headers
+    response.setHeader("Content-Type", "text/event-stream");
+    response.setHeader("Cache-Control", "no-cache");
+    response.setHeader("Connection", "keep-alive");
+    response.setHeader("X-Thread-Id", thread.id);
+    response.setHeader("X-Run-Id", startResult.runId);
+    response.flushHeaders();
+
+    // Handle connection close
+    let shouldCancelOnClose = true;
+    response.on("finish", () => {
+      shouldCancelOnClose = false;
+    });
+    response.on("close", () => {
+      if (!shouldCancelOnClose) {
+        return;
+      }
+
+      void this.v1Service
+        .cancelRun(thread.id, startResult.runId, "connection_closed")
+        .catch((error: unknown) => {
+          // NotFoundException is expected if run already completed
+          if (!(error instanceof NotFoundException)) {
+            this.logger.warn(
+              `Failed to cancel run ${startResult.runId} on connection close: ${error instanceof Error ? error.message : "Unknown error"}`,
+            );
+          }
+        });
+    });
+
+    try {
+      await this.v1Service.executeRun(
+        response,
+        thread.id,
+        startResult.runId,
+        dto,
+        projectId,
+        contextKey,
+        sdkVersion,
+      );
+    } catch (error) {
+      if (!response.headersSent) {
+        throw error;
+      }
+      // Headers already sent — we can't return an HTTP error response, so
+      // emit an SSE error event instead and log. Re-throwing here would just
+      // cause "Cannot set headers after they are sent" in the exception filter.
+      const errorEvent = {
+        type: "RUN_ERROR",
+        message: "An internal error occurred",
+        code: "INTERNAL_ERROR",
+        timestamp: Date.now(),
+      };
+      response.write(`data: ${JSON.stringify(errorEvent)}\n\n`);
+      this.logger.error(
+        `Error during run ${startResult.runId} on thread ${thread.id}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    } finally {
+      response.end();
+    }
+  }
+
+  @Post("threads/:threadId/runs")
+  @UseGuards(V1ThreadInProjectGuard)
+  @ApiOperation({
+    summary: "Create run on existing thread (SSE)",
+    description:
+      "Starts a streaming run on an existing thread. Returns an SSE stream of AG-UI events.",
+  })
+  @ApiParam({
+    name: "threadId",
+    description: "Thread ID",
+    example: "thr_abc123xyz",
+  })
+  @ApiProduces("text/event-stream")
+  @ApiResponse({
+    status: 200,
+    description:
+      "SSE stream of AG-UI events. Each event is sent as 'data: <json>\\n\\n' where <json> is a BaseEvent object.",
+    type: V1BaseEventDto,
+    headers: {
+      "X-Run-Id": {
+        description: "The created run ID",
+        schema: { type: "string" },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Thread not found",
+  })
+  @ApiResponse({
+    status: 409,
+    description: "Concurrent run conflict",
+  })
+  async createRun(
+    @Req() request: Request,
+    @Param("threadId") threadId: string,
+    @Body() dto: V1CreateRunDto,
+    @Res() response: Response,
+  ): Promise<void> {
+    const { projectId, contextKey, sdkVersion } = getV1ContextInfo(
+      request,
+      dto.userKey,
+    );
+
+    // Start run (handles concurrency atomically)
+    const startResult = await this.v1Service.startRun(threadId, dto);
+    if (!startResult.success) {
+      throw startResult.error;
+    }
+
+    // Set SSE headers
+    response.setHeader("Content-Type", "text/event-stream");
+    response.setHeader("Cache-Control", "no-cache");
+    response.setHeader("Connection", "keep-alive");
+    response.setHeader("X-Run-Id", startResult.runId);
+    response.flushHeaders();
+
+    // Handle connection close
+    let shouldCancelOnClose = true;
+    response.on("finish", () => {
+      shouldCancelOnClose = false;
+    });
+    response.on("close", () => {
+      if (!shouldCancelOnClose) {
+        return;
+      }
+
+      void this.v1Service
+        .cancelRun(threadId, startResult.runId, "connection_closed")
+        .catch((error: unknown) => {
+          // NotFoundException is expected if run already completed
+          if (!(error instanceof NotFoundException)) {
+            this.logger.warn(
+              `Failed to cancel run ${startResult.runId} on connection close: ${error instanceof Error ? error.message : "Unknown error"}`,
+            );
+          }
+        });
+    });
+
+    try {
+      await this.v1Service.executeRun(
+        response,
+        threadId,
+        startResult.runId,
+        dto,
+        projectId,
+        contextKey,
+        sdkVersion,
+      );
+    } catch (error) {
+      if (!response.headersSent) {
+        throw error;
+      }
+      // Headers already sent — we can't return an HTTP error response, so
+      // emit an SSE error event instead and log. Re-throwing here would just
+      // cause "Cannot set headers after they are sent" in the exception filter.
+      const errorEvent = {
+        type: "RUN_ERROR",
+        message: "An internal error occurred",
+        code: "INTERNAL_ERROR",
+        timestamp: Date.now(),
+      };
+      response.write(`data: ${JSON.stringify(errorEvent)}\n\n`);
+      this.logger.error(
+        `Error during run ${startResult.runId} on thread ${threadId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    } finally {
+      response.end();
+    }
+  }
+
+  @Delete("threads/:threadId/runs/:runId")
+  @UseGuards(V1ThreadInProjectGuard)
+  @ApiOperation({
+    summary: "Cancel run",
+    description:
+      "Explicitly cancel a running run. Note: closing the SSE connection also cancels the run.",
+  })
+  @ApiParam({
+    name: "threadId",
+    description: "Thread ID",
+    example: "thr_abc123xyz",
+  })
+  @ApiParam({
+    name: "runId",
+    description: "Run ID",
+    example: "run_xyz789abc",
+  })
+  @ApiQuery({
+    name: "userKey",
+    description:
+      "Identifier for a user in your system. Required if no bearer token is provided.",
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Run cancelled",
+    type: V1CancelRunResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Run not found",
+  })
+  async cancelRun(
+    @Req() request: Request,
+    @Param("threadId") threadId: string,
+    @Param("runId") runId: string,
+    @Query("userKey") userKey?: string,
+  ): Promise<V1CancelRunResponseDto> {
+    const { contextKey: _contextKey } = getV1ContextInfo(request, userKey);
+    // Note: the third argument is a cancellation reason, not user identity.
+    return await this.v1Service.cancelRun(threadId, runId, "user_cancelled");
+  }
+
+  // ==========================================
+  // Component state endpoint
+  // ==========================================
+
+  @Post("threads/:threadId/components/:componentId/state")
+  @UseGuards(V1ThreadInProjectGuard)
+  @ApiOperation({
+    summary: "Update component state",
+    description:
+      "Update the state of a component in a thread. Supports both full replacement and JSON Patch operations. Thread must not have an active run.",
+  })
+  @ApiParam({
+    name: "threadId",
+    description: "Thread ID",
+    example: "thr_abc123xyz",
+  })
+  @ApiParam({
+    name: "componentId",
+    description: "Component ID",
+    example: "comp_xyz789abc",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Component state updated successfully",
+    type: UpdateComponentStateResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: "Invalid request (missing state/patch, or invalid patch)",
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Component not found in thread",
+  })
+  @ApiResponse({
+    status: 409,
+    description: "Cannot update state while run is active",
+  })
+  async updateComponentState(
+    @Req() request: Request,
+    @Param("threadId") threadId: string,
+    @Param("componentId") componentId: string,
+    @Body() dto: UpdateComponentStateDto,
+  ): Promise<UpdateComponentStateResponseDto> {
+    const { contextKey: _contextKey } = getV1ContextInfo(request, dto.userKey);
+    return await this.v1Service.updateComponentState(
+      threadId,
+      componentId,
+      dto,
+    );
+  }
+
+  // ==========================================
+  // Suggestion endpoints
+  // ==========================================
+
+  @Get("threads/:threadId/messages/:messageId/suggestions")
+  @UseGuards(V1ThreadInProjectGuard)
+  @ApiOperation({
+    summary: "List suggestions for a message",
+    description:
+      "List suggestions that have been generated for a specific message. Supports cursor-based pagination.",
+  })
+  @ApiParam({
+    name: "threadId",
+    description: "Thread ID",
+    example: "thr_abc123xyz",
+  })
+  @ApiParam({
+    name: "messageId",
+    description: "Message ID",
+    example: "msg_xyz789abc",
+  })
+  @ApiQuery({
+    name: "userKey",
+    description: "Optional user key for thread organization",
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: "List of suggestions",
+    type: V1ListSuggestionsResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Message not found",
+  })
+  async listSuggestions(
+    @Req() request: Request,
+    @Param("threadId") threadId: string,
+    @Param("messageId") messageId: string,
+    @Query() query: V1ListSuggestionsQueryDto,
+    @Query("userKey") userKey?: string,
+  ): Promise<V1ListSuggestionsResponseDto> {
+    const { projectId, contextKey } = getV1ContextInfo(request, userKey);
+    return await this.v1Service.listSuggestions(
+      threadId,
+      messageId,
+      projectId,
+      contextKey,
+      query,
+    );
+  }
+
+  @Post("threads/:threadId/messages/:messageId/suggestions")
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(V1ThreadInProjectGuard)
+  @ApiOperation({
+    summary: "Generate suggestions for a message",
+    description:
+      "Generate AI-powered suggestions for the next action based on the thread context. Suggestions are persisted and can be retrieved later via the list endpoint. Calling this endpoint replaces any existing suggestions for the message.",
+  })
+  @ApiParam({
+    name: "threadId",
+    description: "Thread ID",
+    example: "thr_abc123xyz",
+  })
+  @ApiParam({
+    name: "messageId",
+    description: "Message ID",
+    example: "msg_xyz789abc",
+  })
+  @ApiResponse({
+    status: 201,
+    description: "Suggestions generated successfully",
+    type: V1GenerateSuggestionsResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: "Invalid request parameters",
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Message not found",
+  })
+  async generateSuggestions(
+    @Req() request: Request,
+    @Param("threadId") threadId: string,
+    @Param("messageId") messageId: string,
+    @Body() dto: V1GenerateSuggestionsDto,
+  ): Promise<V1GenerateSuggestionsResponseDto> {
+    const { projectId, contextKey } = getV1ContextInfo(request, dto.userKey);
+    return await this.v1Service.generateSuggestions(
+      threadId,
+      messageId,
+      projectId,
+      contextKey,
+      dto,
+    );
+  }
+}

@@ -1,0 +1,143 @@
+volumes:
+  tambo_postgres_data:
+  minio_data:
+
+services:
+  # MinIO S3-compatible storage
+  minio:
+    image: minio/minio:latest
+    container_name: tambo_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:17
+    container_name: tambo_postgres
+    restart: unless-stopped
+    env_file:
+      - ./docker.env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tambo}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - tambo_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-tambo}",
+        ]
+      interval: 8s
+      timeout: 5s
+      retries: 4
+      start_period: 20s
+
+  # Web Service (Next.js)
+  web:
+    image: tambo-web:latest
+    env_file:
+      - ./docker.env
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV:-production}
+    container_name: tambo_web
+    ports:
+      - "8260:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=${NODE_ENV:-production}
+      - NEXT_PUBLIC_TAMBO_API_URL=${NEXT_PUBLIC_TAMBO_API_URL:-http://localhost:8261}
+      - NEXT_PUBLIC_TAMBO_API_KEY=${NEXT_PUBLIC_TAMBO_API_KEY:-}
+      - NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST:-}
+      - NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY:-}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-tambo}
+      - API_KEY_SECRET=${API_KEY_SECRET}
+      - PROVIDER_KEY_SECRET=${PROVIDER_KEY_SECRET}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - RESEND_AUDIENCE_ID=${RESEND_AUDIENCE_ID:-}
+      - WEATHER_API_KEY=${WEATHER_API_KEY:-}
+      - ALLOW_LOCAL_MCP_SERVERS=${ALLOW_LOCAL_MCP_SERVERS:-}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - EMAIL_FROM_DEFAULT=${EMAIL_FROM_DEFAULT:-}
+      - EMAIL_FROM_PERSONAL=${EMAIL_FROM_PERSONAL:-}
+      - EMAIL_REPLY_TO_SUPPORT=${EMAIL_REPLY_TO_SUPPORT:-}
+      - EMAIL_REPLY_TO_PERSONAL=${EMAIL_REPLY_TO_PERSONAL:-}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN:-}
+      - NEXT_PUBLIC_SENTRY_ORG=${NEXT_PUBLIC_SENTRY_ORG:-}
+      - NEXT_PUBLIC_SENTRY_PROJECT=${NEXT_PUBLIC_SENTRY_PROJECT:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # API Service (NestJS)
+  api:
+    image: tambo-api:latest
+    env_file:
+      - ./docker.env
+    build:
+      # Run context from the repo top level so that Docker can access shared files
+      context: .
+      dockerfile: apps/api/Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV:-production}
+    container_name: tambo_api
+    ports:
+      - "8261:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=${NODE_ENV:-production}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-tambo}
+      - API_KEY_SECRET=${API_KEY_SECRET}
+      - PROVIDER_KEY_SECRET=${PROVIDER_KEY_SECRET}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - EXTRACTION_OPENAI_API_KEY=${EXTRACTION_OPENAI_API_KEY:-}
+      - FALLBACK_OPENAI_API_KEY=${FALLBACK_OPENAI_API_KEY:-}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - RESEND_AUDIENCE_ID=${RESEND_AUDIENCE_ID:-}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-}
+      - SLACK_OAUTH_TOKEN=${SLACK_OAUTH_TOKEN:-}
+      - SLACK_TEAM_ID=${SLACK_TEAM_ID:-}
+      - INTERNAL_SLACK_USER_ID=${INTERNAL_SLACK_USER_ID:-}
+      - DISALLOWED_EMAIL_DOMAINS=${DISALLOWED_EMAIL_DOMAINS:-}
+      - WEATHER_API_KEY=${WEATHER_API_KEY:-}
+      - ALLOW_LOCAL_MCP_SERVERS=${ALLOW_LOCAL_MCP_SERVERS:-}
+      - EMAIL_FROM_DEFAULT=${EMAIL_FROM_DEFAULT:-}
+      - EMAIL_FROM_PERSONAL=${EMAIL_FROM_PERSONAL:-}
+      - EMAIL_REPLY_TO_PERSONAL=${EMAIL_REPLY_TO_PERSONAL:-}
+      - EMAIL_REPLY_TO_SUPPORT=${EMAIL_REPLY_TO_SUPPORT:-}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - POSTHOG_API_KEY=${POSTHOG_API_KEY:-}
+      - POSTHOG_HOST=${POSTHOG_HOST:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped

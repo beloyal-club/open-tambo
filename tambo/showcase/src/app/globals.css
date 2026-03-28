@@ -1,0 +1,16 @@
+/*
+ * Tambo Showcase Global Styles
+ *
+ * This file orchestrates the import of component and site-specific styles.
+ * - components.css: Auto-synced from CLI registry (DO NOT EDIT)
+ * - site.css: Site-specific showcase styles (EDIT AS NEEDED)
+ */
+
+/* Component styles from CLI registry - synced automatically */
+@import "./components.css";
+
+/* Site-specific styles for showcase */
+@import "./site.css";
+
+/* Syntax highlighting theme (highlight.js) */
+@import "./highlight.css";

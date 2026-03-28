@@ -1,0 +1,293 @@
+name: Release Please
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+# Prevent multiple simultaneous runs
+concurrency:
+  group: release-please-${{ github.ref }}
+
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      react-sdk--release_created: ${{ steps.release.outputs.react-sdk--release_created }}
+      cli--release_created: ${{ steps.release.outputs.cli--release_created }}
+      create-tambo-app--release_created: ${{ steps.release.outputs.create-tambo-app--release_created }}
+      docs--release_created: ${{ steps.release.outputs.docs--release_created }}
+      showcase--release_created: ${{ steps.release.outputs.showcase--release_created }}
+      apps/web--release_created: ${{ steps.release.outputs['apps/web--release_created'] }}
+      apps/api--release_created: ${{ steps.release.outputs['apps/api--release_created'] }}
+      packages/client--release_created: ${{ steps.release.outputs['packages/client--release_created'] }}
+      packages/react-ui-base--release_created: ${{ steps.release.outputs['packages/react-ui-base--release_created'] }}
+
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - name: Release Please
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          config-file: .config/release-please/release-please-config.json
+          manifest-file: .config/release-please/.release-please-manifest.json
+
+  # NPM Package Publishing - Client
+  publish-client:
+    needs: release-please
+    runs-on: ubuntu-latest
+    if: ${{ needs.release-please.outputs['packages/client--release_created'] == 'true' }}
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC publishing to NPM
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-tools
+
+      - name: Setup npm registry
+        uses: actions/setup-node@v6
+        with:
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Build
+        run: npx turbo build --filter=@tambo-ai/client
+
+      - name: Publish @tambo-ai/client to npm
+        working-directory: ./packages/client
+        run: npm publish --access public
+
+  # NPM Package Publishing - React SDK
+  publish-react-sdk:
+    needs: release-please
+    runs-on: ubuntu-latest
+    if: ${{ needs.release-please.outputs.react-sdk--release_created == 'true' }}
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC publishing to NPM
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-tools
+
+      - name: Setup npm registry
+        uses: actions/setup-node@v6
+        with:
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Build
+        run: npx turbo build --filter=@tambo-ai/react
+
+      - name: Publish @tambo-ai/react to npm
+        working-directory: ./react-sdk
+        run: npm publish --access public
+
+  # NPM Package Publishing - CLI
+  publish-cli:
+    needs: release-please
+    runs-on: ubuntu-latest
+    if: ${{ needs.release-please.outputs.cli--release_created == 'true' }}
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC publishing to NPM
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-tools
+
+      - name: Setup npm registry
+        uses: actions/setup-node@v6
+        with:
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Build
+        run: npx turbo build --filter=tambo
+
+      - name: Publish tambo to npm
+        working-directory: ./cli
+        run: npm publish --access public
+
+  # NPM Package Publishing - Create Tambo App
+  publish-create-tambo-app:
+    needs: release-please
+    runs-on: ubuntu-latest
+    if: ${{ needs.release-please.outputs.create-tambo-app--release_created == 'true' }}
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC publishing to NPM
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-tools
+
+      - name: Setup npm registry
+        uses: actions/setup-node@v6
+        with:
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Build
+        run: npx turbo build --filter=create-tambo-app
+
+      - name: Publish create-tambo-app to npm
+        working-directory: ./create-tambo-app
+        run: npm publish --access public
+
+  # NPM Package Publishing - React UI Base
+  publish-react-ui-base:
+    needs: release-please
+    runs-on: ubuntu-latest
+    if: ${{ needs.release-please.outputs['packages/react-ui-base--release_created'] == 'true' }}
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC publishing to NPM
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-tools
+
+      - name: Setup npm registry
+        uses: actions/setup-node@v6
+        with:
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Build
+        run: npx turbo build --filter=@tambo-ai/react-ui-base
+
+      - name: Publish @tambo-ai/react-ui-base to npm
+        working-directory: ./packages/react-ui-base
+        run: npm publish --access public
+
+  # Web App Deployment
+  deploy-web:
+    needs: release-please
+    runs-on: ubuntu-latest
+    if: ${{ needs.release-please.outputs['apps/web--release_created'] == 'true' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      - name: Setup Git User
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+
+      - name: Merge main into deploy-web (for Sentry release)
+        run: |
+          git checkout deploy-web
+          git merge --no-ff main -m "chore: merge main into deploy-web for release ${{ needs.release-please.outputs.tag_name }}"
+          git push origin deploy-web
+
+  # API Deployment
+  deploy-api:
+    needs: release-please
+    runs-on: ubuntu-latest
+    if: ${{ needs.release-please.outputs['apps/api--release_created'] == 'true' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      - name: Setup Git User
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+
+      - name: Merge main into deploy-api (for Sentry release)
+        run: |
+          git checkout deploy-api
+          git merge --no-ff main -m "chore: merge main into deploy-api for release ${{ needs.release-please.outputs.tag_name }}"
+          git push origin deploy-api
+
+  # Docs Deployment
+  deploy-docs:
+    needs: release-please
+    runs-on: ubuntu-latest
+    if: ${{ needs.release-please.outputs.docs--release_created == 'true' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      - name: Setup Git User
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+
+      - name: Merge main into deploy-docs
+        run: |
+          git checkout deploy-docs
+          git merge --no-ff main -m "chore: merge main into deploy-docs for release ${{ needs.release-please.outputs.tag_name }}"
+          git push origin deploy-docs
+
+  # Showcase Deployment
+  deploy-showcase:
+    needs: release-please
+    runs-on: ubuntu-latest
+    if: ${{ needs.release-please.outputs.showcase--release_created == 'true' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      - name: Setup Git User
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+
+      - name: Merge main into deploy-showcase
+        run: |
+          git checkout deploy-showcase
+          git merge --no-ff main -m "chore: merge main into deploy-showcase for release ${{ needs.release-please.outputs.tag_name }}"
+          git push origin deploy-showcase
+  sentry-release:
+    name: Create Sentry Release
+    needs: release-please
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Sentry CLI
+        run: |
+          curl -sL https://sentry.io/get-cli/ | bash
+
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 100
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      - name: Create Sentry Release
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: tambo-ai
+          SENTRY_PROJECT: tambo-cloud
+        run: |
+          VERSION=$(sentry-cli releases propose-version)
+          sentry-cli releases new "$VERSION"
+          sentry-cli releases set-commits "$VERSION" --auto
+          sentry-cli releases finalize "$VERSION"

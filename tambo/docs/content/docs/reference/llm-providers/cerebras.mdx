@@ -1,0 +1,129 @@
+---
+title: Cerebras
+description: Cerebras provider configuration for ultra-fast inference with Wafer-Scale Engine hardware.
+---
+
+Cerebras provides extremely fast inference powered by their Wafer-Scale Engine hardware. This page covers all Cerebras models available in Tambo.
+
+## Cerebras model overview
+
+Cerebras hosts open-source models optimized for their specialized hardware:
+
+- **Production Models**: Llama 3.1 8B and GPT-OSS 120B
+- **Preview Models**: Qwen 3 235B and ZAI GLM 4.7
+
+All context windows are limited to 8,192 tokens on the free tier.
+
+## Supported Models
+
+### Production Models
+
+#### llama3.1-8b
+
+**Status:** Untested
+**API Name:** `llama3.1-8b`
+**Context Window:** 128,000 tokens (8,192 on free tier)
+**Speed:** ~2,200 tokens/sec
+**Provider Docs:** [Cerebras - Llama 3.1 8B](https://inference-docs.cerebras.ai/models/llama-31-8b)
+
+Meta's Llama 3.1 8B model running on Cerebras hardware. Best suited for simple tasks and cost-effective deployments.
+
+**Best for:**
+
+- Cost-sensitive applications
+- Real-time chat and responses
+- Simple text generation tasks
+- High-volume, low-complexity workloads
+
+#### gpt-oss-120b
+
+**Status:** Untested
+**API Name:** `gpt-oss-120b`
+**Context Window:** 8,192 tokens
+**Speed:** ~3,000 tokens/sec
+**Provider Docs:** [Cerebras - OpenAI GPT OSS](https://inference-docs.cerebras.ai/models/openai-oss)
+
+OpenAI open-weight 120B parameter model on Cerebras.
+
+**Best for:**
+
+- General-purpose high-performance tasks
+- Applications requiring strong reasoning
+- Complex content generation
+
+### Preview Models
+
+<Callout type="info" title="Preview Models">
+  Preview models are intended for evaluation purposes only and may be
+  discontinued with short notice.
+</Callout>
+
+#### qwen-3-235b-a22b-instruct-2507
+
+**Status:** Untested
+**API Name:** `qwen-3-235b-a22b-instruct-2507`
+**Context Window:** 32,768 tokens (8,192 on free tier)
+**Speed:** ~1,400 tokens/sec
+**Provider Docs:** [Cerebras - Qwen 3 235B](https://inference-docs.cerebras.ai/models/qwen-3-235b-2507)
+
+Alibaba's large-scale Qwen 3 model (235B params) optimized for instruction following.
+
+**Best for:**
+
+- Complex instruction following
+- Advanced reasoning and analysis
+- Multilingual applications
+
+#### zai-glm-4.7
+
+**Status:** Untested
+**API Name:** `zai-glm-4.7`
+**Context Window:** 128,000 tokens (8,192 on free tier)
+**Speed:** ~1,000 tokens/sec
+**Provider Docs:** [Cerebras - ZAI GLM 4.7](https://inference-docs.cerebras.ai/models/zai-glm-47)
+
+Zhipu AI's GLM 4.7 (355B params) on Cerebras.
+
+**Best for:**
+
+- General text generation
+- Conversational AI
+- Bilingual (Chinese/English) tasks
+
+<Callout type="warning" title="Untested Models">
+  All Cerebras models are currently **Untested** in Tambo. Test them in your
+  specific context before production deployment. See the
+  [Labels](/reference/llm-providers/labels) page for more information about
+  model status labels.
+</Callout>
+
+## Configuration
+
+All Cerebras models are configured through your project settings in the Tambo dashboard:
+
+1. Navigate to your project in the dashboard
+2. Go to **Settings** -> **LLM Providers**
+3. Select **Cerebras** as your provider
+4. Enter your Cerebras API key (get one from [Cerebras Cloud](https://cloud.cerebras.ai/))
+5. Choose your desired model from the dropdown
+6. Configure any [additional parameters](/guides/setup-project/llm-provider)
+7. Click **Save** to apply the configuration
+
+## Model Selection Guide
+
+**For speed and cost efficiency:**
+
+- **Fastest**: [Llama 3.1 8B](#llama31-8b)
+
+**For complex tasks:**
+
+- **Maximum capability**: [Qwen 3 235B](#qwen-3-235b-a22b-instruct-2507) or [GPT-OSS 120B](#gpt-oss-120b)
+
+**For bilingual (Chinese/English):**
+
+- [GLM 4.7](#zai-glm-47)
+
+## See Also
+
+- [Labels](/reference/llm-providers/labels) - Understanding model status labels and observed behaviors
+- [Custom LLM Parameters](/guides/setup-project/llm-provider) - Configuring model parameters for fine-tuned responses

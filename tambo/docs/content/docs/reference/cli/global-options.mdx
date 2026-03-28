@@ -1,0 +1,314 @@
+---
+title: Global Options
+description: Learn the global flags supported by the Tambo CLI and how to use them in CI, automation, and common workflows.
+---
+
+All Tambo CLI commands support these global options. You can use them with any command to modify behavior, skip prompts, or handle common scenarios.
+
+## Available Options
+
+### `--version`
+
+Shows the current version of the Tambo CLI.
+
+```bash
+npx tambo --version
+# Output: 1.2.3
+```
+
+### `--yes, -y`
+
+Auto-answers "yes" to all confirmation prompts. Required for non-interactive environments like CI/CD.
+
+**Examples:**
+
+```bash
+# Skip all prompts during setup
+npx tambo init --yes
+
+# Install components without confirmation
+npx tambo add form graph --yes
+
+# Update all components without asking
+npx tambo update installed --yes
+
+# Migrate components automatically
+npx tambo migrate --yes
+
+# Upgrade in CI/CD (required for non-interactive)
+npx tambo upgrade --yes
+```
+
+**Use cases:**
+
+- CI/CD pipelines (required for upgrade command)
+- Automated deployments
+- Docker builds
+- Batch operations
+- When you're confident about the changes
+
+### `--legacy-peer-deps`
+
+Installs dependencies using npm's `--legacy-peer-deps` flag. This resolves common dependency conflicts.
+
+**Examples:**
+
+```bash
+# Install with legacy peer deps
+npx tambo init --legacy-peer-deps
+
+# Add components with legacy peer deps
+npx tambo add message-thread-full --legacy-peer-deps
+
+# Upgrade project with legacy peer deps
+npx tambo upgrade --legacy-peer-deps
+```
+
+**When to use:**
+
+- Getting peer dependency warnings
+- Working with older React versions
+- Complex dependency trees
+- Corporate environments with strict package policies
+
+<Callout type="info" title="Dependency Conflicts">
+  If you see errors like "unable to resolve dependency tree" or peer dependency
+  warnings, try adding `--legacy-peer-deps` to your command.
+</Callout>
+
+### `--prefix <path>`
+
+Specifies a custom directory for components instead of the default `components/tambo`.
+
+**Examples:**
+
+```bash
+# Install components in src/components/ui
+npx tambo add form --prefix=src/components/ui
+
+# List components in custom directory
+npx tambo list --prefix=src/components/ui
+
+# Update components in custom location
+npx tambo update installed --prefix=src/components/custom
+
+# Migrate from custom source to custom destination
+npx tambo migrate --prefix=src/components/tambo
+```
+
+**Common prefix patterns:**
+
+- `src/components/ui` - Traditional UI components directory
+- `src/components/tambo` - Dedicated Tambo directory in src
+- `app/components/ui` - App router components
+- `lib/components` - Library-style organization
+
+### `--dry-run`
+
+Preview changes before applying them. Currently only available for the `migrate` command.
+
+**Examples:**
+
+```bash
+# Preview migration changes
+npx tambo migrate --dry-run
+```
+
+**Output example:**
+
+```
+🔍 Dry run mode - no changes will be made
+
+The following changes would be applied:
+  📁 Move: components/ui/form.tsx → components/tambo/form.tsx
+  📁 Move: components/ui/graph.tsx → components/tambo/graph.tsx
+  📝 Update: lib/tambo.ts (import paths)
+
+Run without --dry-run to apply these changes.
+```
+
+## Combining Options
+
+You can combine multiple options in a single command:
+
+```bash
+# Install components with custom prefix, skip prompts, and handle conflicts
+npx tambo add form graph --prefix=src/components/ui --yes --legacy-peer-deps
+
+# Upgrade with custom prefix
+npx tambo upgrade --yes --prefix=src/components/ui
+
+# Migrate automatically with custom paths
+npx tambo migrate --yes --prefix=src/components/custom
+```
+
+## Command-Specific Options
+
+Some commands have additional options beyond these global ones:
+
+### `create-app` specific options
+
+```bash
+# Skip automatic git initialization
+npx tambo create-app my-app --skip-git-init
+
+# Skip automatic tambo init
+npx tambo create-app my-app --skip-tambo-init
+
+# Use specific template
+npx tambo create-app my-app --template=standard
+```
+
+### `add` specific options
+
+```bash
+# Install multiple components
+npx tambo add form graph canvas-space
+```
+
+## Best Practices
+
+### For Development
+
+```bash
+# Safe exploration - preview migration first
+npx tambo migrate --dry-run
+
+# Quick iterations
+npx tambo add form --yes
+npx tambo update form --yes
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Issue: Command not found**
+
+```bash
+# Check CLI version
+npx tambo --version
+
+# Update to latest
+npm install -g @tambo-ai/cli@latest
+```
+
+**Issue: Permission errors**
+
+```bash
+# Use npx instead of global install
+npx tambo init --yes
+```
+
+**Issue: Dependency conflicts**
+
+```bash
+# Use legacy peer deps
+npx tambo add form --legacy-peer-deps
+```
+
+**Issue: Wrong directory**
+
+```bash
+# Check current components
+npx tambo list
+
+# Use correct prefix
+npx tambo list --prefix=src/components/ui
+```
+
+## Exit Codes
+
+The Tambo CLI uses standard exit codes for shell integration and CI/CD:
+
+| Exit Code | Meaning              | Common Causes                                  |
+| --------- | -------------------- | ---------------------------------------------- |
+| `0`       | Success              | Command completed successfully                 |
+| `1`       | Failure              | Command failed, error details in output        |
+| `2`       | User action required | Command needs input; check stderr for guidance |
+
+**Usage in scripts:**
+
+```bash
+# Check if command succeeded
+if npx tambo add form --yes; then
+  echo "Component installed successfully"
+else
+  echo "Component installation failed"
+  exit 1
+fi
+
+# CI/CD example with proper exit code handling
+npx tambo init --api-key="$TAMBO_API_KEY"
+status=$?
+if [ $status -eq 2 ]; then
+  echo "Missing required arguments - see guidance above"
+  exit 1
+elif [ $status -ne 0 ]; then
+  echo "Command failed"
+  exit 1
+fi
+```
+
+**Common failure scenarios:**
+
+- Missing required files (package.json, tsconfig.json)
+- Invalid component names
+- Network errors during installation
+- User cancellation (Ctrl+C or answering "No" to prompts)
+- Non-interactive environment without required flags
+- File system permission errors
+
+## Non-Interactive Mode
+
+The CLI is agent-friendly and automatically detects non-interactive environments (CI/CD pipelines, AI coding assistants, piped input/output), providing helpful guidance instead of hanging on prompts. This makes it easy to use with tools like Claude Code, Cursor, and other AI-powered development environments.
+
+### How Detection Works
+
+The CLI considers the environment non-interactive when **any** of these are true:
+
+- `process.stdin.isTTY` is false (piped input)
+- `process.stdout.isTTY` is false (piped output)
+- `CI` environment variable is set and non-empty
+- `GITHUB_ACTIONS=true`
+- `TERM=dumb`
+
+### Using the CLI in CI/CD
+
+When running in non-interactive mode, use command-line flags to provide all required input:
+
+```bash
+# Initialize with direct API key (simplest for CI)
+npx tambo init --api-key="$TAMBO_API_KEY"
+
+# Add components without prompts
+npx tambo add form graph --yes
+
+# Create new project (requires browser auth - use --no-browser for URL output)
+npx tambo init --project-name=myapp --no-browser
+```
+
+### Exit Code 2: User Action Required
+
+When a command needs user input that wasn't provided via flags, it exits with code 2 and prints guidance to stderr:
+
+```bash
+$ npx tambo init
+# Exit code: 2
+# stderr: API key required in non-interactive mode
+#         npx tambo init --api-key=sk_...
+#         npx tambo init --project-name=myapp
+```
+
+### Forcing Interactive Mode
+
+If you need interactive prompts in an environment detected as non-interactive (and you have a real TTY), you can override:
+
+```bash
+FORCE_INTERACTIVE=1 npx tambo init
+```
+
+<Callout type="warn" title="TTY Required">
+  `FORCE_INTERACTIVE=1` only works when a real TTY is available. It cannot make
+  a piped environment interactive.
+</Callout>

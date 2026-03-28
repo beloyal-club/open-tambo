@@ -1,0 +1,231 @@
+# AGENTS.md
+
+Detailed guidance for Claude Code agents working with the CLI package.
+
+## Project Overview
+
+The Tambo CLI (`tambo`) is a command-line tool for scaffolding, managing, and extending Tambo AI applications. It provides component generation, project initialization, dependency management, and development utilities.
+
+## Component Registry (Source of Truth)
+
+The component registry lives in `packages/ui-registry/` - this is the single source of truth for all Tambo components. The CLI copies these components to `dist/registry/` at build time via the `copy-registry` prebuild script. When users run `tambo add <component>`, files are read from `dist/registry/` and transformed for the user's project.
+
+## Essential Commands
+
+```bash
+# Development
+npm run dev              # Watch mode TypeScript compilation
+npm run build           # Build CLI executable
+npm run test            # Run Jest test suite
+npm run lint            # ESLint code checking
+npm run check-types     # TypeScript type checking
+
+# CLI usage (after build)
+tambo init                    # Initialize Tambo in existing project
+tambo add <component>        # Add components from registry
+tambo list                   # List available components
+tambo create-app <name>      # Create new Tambo application
+tambo update                 # Update existing components
+tambo upgrade               # Upgrade Tambo dependencies
+```
+
+## Non-Interactive Mode (for AI Agents)
+
+The CLI automatically detects non-interactive environments (piped stdin/stdout, CI systems) and provides guidance instead of hanging on prompts.
+
+### Exit Codes
+
+| Code | Meaning                                          |
+| ---- | ------------------------------------------------ |
+| 0    | Success                                          |
+| 1    | Error (network, invalid args, etc.)              |
+| 2    | User action required - check stderr for guidance |
+
+### Commands for Agents
+
+**Initialize a project (pick one):**
+
+```bash
+# Option 1: Direct API key (simplest)
+tambo init --api-key=sk_...
+
+# Option 2: Create new project (requires auth)
+tambo init --project-name=myapp
+
+# Option 3: Use existing project (requires auth)
+tambo init --project-id=abc123
+```
+
+**Create a new app:**
+
+```bash
+tambo create-app my-app --template=standard
+```
+
+**Add components:**
+
+```bash
+tambo add <component> --yes --prefix=src/components/tambo
+tambo add <component> --dry-run  # Preview without installing
+```
+
+**List components (no prompts needed):**
+
+```bash
+tambo list --yes
+```
+
+**Authenticate (for --project-name/--project-id flows):**
+
+```bash
+tambo auth login --no-browser  # Prints URL instead of opening browser
+```
+
+### Detection Logic
+
+The CLI is non-interactive when ANY of these are true:
+
+- `process.stdin.isTTY` is false (piped input)
+- `process.stdout.isTTY` is false (piped output)
+- `CI` environment variable is set
+- `GITHUB_ACTIONS=true`
+
+Override with `FORCE_INTERACTIVE=1` if needed (requires real TTY).
+
+## Architecture Overview
+
+### Command Structure
+
+- **Entry point**: `src/cli.ts` - Main CLI setup with meow
+- **Commands**: `src/commands/` - Individual command implementations
+  - `init.ts` - Project initialization
+  - `add/` - Component installation system
+  - `create-app.ts` - New app creation
+  - `list/` - Component listing
+  - `update.ts` - Component updates
+  - `upgrade/` - Dependency upgrades
+
+### Component Registry System
+
+- **Registry Source**: `packages/ui-registry/src/` - The source of truth for all Tambo components
+- **CLI Distribution**: At build time, registry is copied to `cli/dist/registry/`
+- **Structure**: Each component has:
+  - `config.json` - Metadata (name, description, dependencies)
+  - Component files (`.tsx`, `.ts`)
+  - Supporting files (CSS, utilities)
+
+### Key Features
+
+- Automatic dependency resolution and installation
+- Tailwind CSS configuration management
+- Project structure detection and setup
+- Interactive prompts for user choices
+- Template-based component generation
+
+## Key Files and Directories
+
+- `src/cli.ts` - Main CLI entry point with command routing
+- `src/commands/add/` - Component installation logic
+- `src/lib/telemetry.ts` - Anonymous telemetry via `posthog-node` SDK
+- `src/lib/paths.ts` - XDG-compliant directory resolution (shared by telemetry + token-storage)
+- `scripts/copy-registry.ts` - Prebuild script that copies registry from ui-registry package
+- `dist/registry/` - Built registry files (copied from `packages/ui-registry/src/`)
+- `src/constants/` - Shared constants and paths
+- `src/templates/` - Project templates
+
+## Telemetry
+
+Usage analytics. If logged in, the user's Tambo ID is attached to events.
+
+- **Opt-out**: `TAMBO_TELEMETRY_DISABLED=1`
+- **How it works**: Uses the `posthog-node` SDK. Events are sent directly to PostHog (`us.i.posthog.com`) via `client.capture()`, and `await client.shutdown()` is called before the CLI exits to flush pending events. If the user is logged in, their Tambo user ID is used as the distinct ID.
+- **Adding a new event**:
+  1. Add the event name to `EVENTS` in `src/lib/telemetry.ts`
+  2. Call `trackEvent(EVENTS.NEW_EVENT, { ... })` in the command handler
+  3. New properties are passed through automatically (no server-side allowlist)
+- **Dev override**: Set `TAMBO_TELEMETRY_HOST` to point at a different PostHog-compatible ingest endpoint.
+- **Current events**: `cli.command.completed`, `cli.command.error`, `cli.component.added`, `cli.init.completed`, `cli.auth.login`, `cli.auth.logout`
+
+## Development Patterns
+
+### New End-User Features Process
+
+We have a doc-first approach to developing new features in our CLI. This means we write the documentation first, then write the code to implement the feature. Our docs are in the docs site (read ../docs/AGENTS.md).
+
+1. Read all existing documentation and code in the repository
+2. Read the relevant code to ensure you understand the existing code and context
+3. Before writing any code, write a detailed description of the feature in the docs site
+4. Then write the code to implement the feature
+
+If you do update the components directly, you should also update the documentation in the docs site (read ../docs/AGENTS.md).
+
+### Adding New Commands
+
+1. Create command file in `src/commands/`
+2. Implement handler function
+3. Add to CLI routing in `src/cli.ts`
+4. Update help text and flags
+
+### Adding New Components
+
+1. Create component directory in `packages/ui-registry/src/components/`
+2. Add `config.json` with metadata
+3. Include component files and dependencies
+4. Add exports to `packages/ui-registry/package.json`
+5. Rebuild CLI (`npm run build -w cli`) to copy new components
+6. Test installation with `tambo add <component>`
+
+## Testing
+
+### CLI Utility Tests
+
+CLI utilities use Jest with ESM support and memfs for filesystem mocking:
+
+- **Location**: Tests live beside the files they cover
+- **Example**: `src/commands/add/index.ts` → `src/commands/add/index.test.ts`
+- Use `memfs` (`vol.fromJSON()`) to mock filesystem operations
+- Mock external dependencies: `child_process.execSync`, `inquirer.prompt`, registry utilities
+- Helper functions in `src/__fixtures__/mock-fs-setup.ts` for common test scenarios
+- See `src/commands/list/index.test.ts` and `src/commands/add/index.test.ts` for examples
+
+### Running Tests
+
+```bash
+npm test                        # Run all CLI tests
+npm test -- --watch            # Run tests in watch mode
+npm test -- add                # Run specific CLI utility test
+```
+
+Key requirements:
+
+- Command handlers must have unit tests
+- Test both success and error cases
+- Mock external dependencies (don't hit real filesystem/network/npm)
+
+### Component Tests
+
+Registry component tests live in `packages/ui-registry/` alongside the components they test. See `packages/ui-registry/AGENTS.md` for details on running and writing component tests.
+
+### Package Distribution
+
+The CLI `package.json` is configured so test files are excluded from the
+published npm package:
+
+```jsonc
+"files": [
+  "src",
+  "dist",
+  "!**/*.test.*",
+  "!**/__tests__/**"
+]
+```
+
+## Important Development Rules
+
+- CLI is built as ESM module only
+- All components must be SSR compatible
+- Follow existing patterns for command structure
+- Write tests for new commands and logic changes
+- Test component generation end-to-end
+- Update help text for new commands/options
+- Always run tests before committing: `npm test`

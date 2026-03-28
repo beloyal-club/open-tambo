@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@tambo-ai/typescript-config/nextjs.json",
+  "compilerOptions": {
+    "incremental": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@tambo-ai/react": ["../react-sdk/src"],
+      "@tambo-ai/react/mcp": ["../react-sdk/src/mcp"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "*.mjs",
+    "scripts/**/*.mjs",
+    "tests/**/*.mjs",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}

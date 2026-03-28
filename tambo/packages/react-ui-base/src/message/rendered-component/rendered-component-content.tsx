@@ -1,0 +1,54 @@
+import { mergeProps } from "@base-ui/react/merge-props";
+import { useRender } from "@base-ui/react/use-render";
+import type { TamboComponentContent } from "@tambo-ai/react";
+import * as React from "react";
+import { useMessageRootContext } from "../root/message-root-context";
+
+export interface MessageRenderedComponentContentRenderProps extends Record<
+  string,
+  unknown
+> {
+  slot: string;
+  renderedComponents: React.ReactNode[];
+}
+
+export type MessageRenderedComponentContentProps = useRender.ComponentProps<
+  "div",
+  MessageRenderedComponentContentRenderProps
+>;
+
+export const MessageRenderedComponentContent = React.forwardRef<
+  HTMLDivElement,
+  MessageRenderedComponentContentProps
+>((props, ref) => {
+  const { message } = useMessageRootContext();
+
+  const renderedComponents = message.content
+    .filter(
+      (block): block is TamboComponentContent => block.type === "component",
+    )
+    .map((block) => block.renderedComponent)
+    .filter(Boolean);
+
+  const { render, ...componentProps } = props;
+  const renderProps: MessageRenderedComponentContentRenderProps = {
+    slot: "message-rendered-component-content",
+    renderedComponents,
+  };
+
+  return useRender({
+    defaultTagName: "div",
+    ref,
+    render,
+    enabled: renderedComponents.length > 0,
+    state: renderProps,
+    stateAttributesMapping: {
+      renderedComponents: () => null,
+    },
+    props: mergeProps(componentProps, {
+      children: renderedComponents,
+    }),
+  });
+});
+MessageRenderedComponentContent.displayName =
+  "Message.RenderedComponentContent";

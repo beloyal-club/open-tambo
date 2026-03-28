@@ -1,0 +1,314 @@
+name: Docker
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  push:
+    branches:
+      - main
+      - develop
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  meta:
+    name: Meta
+    runs-on: ubuntu-latest
+    outputs:
+      should-push: ${{ steps.should-push.outputs.should-push }}
+      release-tag: ${{ steps.should-push.outputs.release-tag }}
+      release-service: ${{ steps.should-push.outputs.release-service }}
+    steps:
+      - name: Determine if we should push to GHCR
+        id: should-push
+        run: |
+          # Push to GHCR only when a release is published
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            TAG="${{ github.event.release.tag_name }}"
+            echo "should-push=true" >> $GITHUB_OUTPUT
+            echo "release-tag=$TAG" >> $GITHUB_OUTPUT
+
+            # Determine which service this release is for (e.g., "api-v0.144.3" -> "api")
+            if [[ "$TAG" =~ ^(api|web)-v ]]; then
+              echo "release-service=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+              echo "Release is for ${BASH_REMATCH[1]} service"
+            else
+              echo "release-service=all" >> $GITHUB_OUTPUT
+              echo "Release is for all services"
+            fi
+          else
+            echo "should-push=false" >> $GITHUB_OUTPUT
+            echo "release-tag=" >> $GITHUB_OUTPUT
+            echo "release-service=" >> $GITHUB_OUTPUT
+            echo "Building locally for testing (no GHCR push)"
+          fi
+
+  build:
+    name: Build (${{ matrix.images.name }})
+    needs: [meta]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    env:
+      DOCKER_BUILDKIT: 1
+      COMPOSE_DOCKER_CLI_BUILD: 1
+    strategy:
+      matrix:
+        # Keep in sync with push job matrix
+        images:
+          - name: web
+            context: .
+            dockerfile: ./apps/web/Dockerfile
+            path: apps/web
+            repo: ghcr.io/tambo-ai
+            image: tambo-web-server
+            description: Next.js web frontend for Tambo AI platform
+
+          - name: api
+            context: .
+            dockerfile: ./apps/api/Dockerfile
+            path: apps/api
+            repo: ghcr.io/tambo-ai
+            image: tambo-api-server
+            description: NestJS backend API for Tambo AI platform
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        id: setup-buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image for testing
+        uses: docker/build-push-action@v7
+        with:
+          builder: ${{ steps.setup-buildx.outputs.name }}
+          context: .
+          file: ./${{ matrix.images.path }}/Dockerfile
+          outputs: type=docker,dest=${{ runner.temp }}/docker-${{ matrix.images.name }}.tar
+          tags: tambo-${{ matrix.images.name }}:latest
+          cache-from: |
+            type=gha,scope=buildx-${{ matrix.images.name }}-${{ github.ref_name }}
+            type=gha,scope=buildx-${{ matrix.images.name }}-main
+          cache-to: |
+            type=gha,scope=buildx-${{ matrix.images.name }}-${{ github.ref_name }},mode=max
+          build-args: |
+            NODE_ENV=production
+            TURBO_TEAM=${{ vars.TURBO_TEAM }}
+          secrets: |
+            TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
+          allow: network.host
+          network: host
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-${{ matrix.images.name }}
+          path: ${{ runner.temp }}/docker-${{ matrix.images.name }}.tar
+          retention-days: 1
+
+  test:
+    needs: [meta, build]
+    name: Test
+    runs-on: ubuntu-latest
+    env:
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+    permissions:
+      contents: read
+      actions: read
+      checks: write
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Download artifact
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/
+          pattern: docker-*
+
+      - name: Load images
+        run: |
+          find ${{ runner.temp }} -type f -name "*.tar" -exec docker load --input "{}" \;
+          docker image ls -a
+
+      - name: Setup and start Docker stack
+        run: |
+          ./scripts/cloud/tambo-setup.sh
+          ./scripts/cloud/tambo-start.sh
+        timeout-minutes: 8
+
+      - name: Wait for services to be healthy
+        run: |
+          # Wait for PostgreSQL to be healthy (reduced wait time)
+          timeout 45 bash -c 'until docker inspect --format={{.State.Health.Status}} tambo_postgres 2>/dev/null | grep -q ^healthy$; do sleep 3; done'
+
+          # Wait for API to be ready (using the /health endpoint)
+          timeout 45 bash -c 'until curl -fso /dev/null http://localhost:8261/health 2>/dev/null; do sleep 3; done'
+
+          # Wait for Web to be ready
+          timeout 45 bash -c 'until curl -fso /dev/null http://localhost:8260/ 2>/dev/null; do sleep 3; done'
+
+      - name: Check service status
+        run: |
+          echo "=== Docker Compose Status ==="
+          docker compose --env-file docker.env ps
+
+          echo "=== Service Health Checks ==="
+          echo "PostgreSQL: $(docker compose --env-file docker.env ps postgres | grep -o 'healthy\|unhealthy\|starting' || echo 'unknown')"
+
+          echo "=== Service Endpoints ==="
+          echo "Testing API health endpoint..."
+          curl -fso /dev/null http://localhost:8261/health && echo -e "\nAPI health endpoint responding"
+
+          echo "Testing API root endpoint..."
+          curl -fso /dev/null http://localhost:8261/ && echo -e "\nAPI root endpoint responding"
+
+          echo "Testing Web endpoint..."
+          curl -fso /dev/null http://localhost:8260/ && echo -e "\nWeb endpoint responding"
+
+      - name: Initialize database
+        run: ./scripts/cloud/init-database.sh
+        timeout-minutes: 2
+
+      - name: Verify database initialization
+        run: |
+          # Check if database tables were created
+          echo "=== Database Tables ==="
+          docker compose --env-file docker.env exec -T postgres psql -U postgres -d tambo -c "\dt" || echo "Database tables not found"
+
+          # Check if migrations were applied
+          echo "=== Migration Status ==="
+          docker compose --env-file docker.env exec -T postgres psql -U postgres -d tambo -c "SELECT * FROM drizzle.__drizzle_migrations ORDER BY created_at DESC LIMIT 5;" || echo "Migration table not found"
+
+      - name: Stop Docker stack
+        if: always()
+        run: ./scripts/cloud/tambo-stop.sh
+        timeout-minutes: 2
+
+      - name: Debug Docker logs on failure
+        if: failure()
+        run: ./scripts/cloud/tambo-logs.sh
+
+  push:
+    name: Push (${{ matrix.images.name }})
+    needs: [meta, build, test]
+    if: needs.meta.outputs.should-push == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        # Keep in sync with build job matrix
+        images:
+          - name: web
+            path: apps/web
+            repo: ghcr.io/tambo-ai
+            image: tambo-web-server
+            description: Next.js web frontend for Tambo AI platform
+
+          - name: api
+            path: apps/api
+            repo: ghcr.io/tambo-ai
+            image: tambo-api-server
+            description: NestJS backend API for Tambo AI platform
+    steps:
+      - name: Check if this image should be pushed
+        id: should-push-image
+        run: |
+          SERVICE="${{ needs.meta.outputs.release-service }}"
+          IMAGE_NAME="${{ matrix.images.name }}"
+          if [[ "$SERVICE" == "all" || "$SERVICE" == "$IMAGE_NAME" ]]; then
+            echo "push=true" >> $GITHUB_OUTPUT
+            echo "Pushing $IMAGE_NAME (release-service=$SERVICE)"
+          else
+            echo "push=false" >> $GITHUB_OUTPUT
+            echo "Skipping $IMAGE_NAME (release-service=$SERVICE)"
+          fi
+
+      - name: Checkout repository
+        if: steps.should-push-image.outputs.push == 'true'
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        if: steps.should-push-image.outputs.push == 'true'
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        if: steps.should-push-image.outputs.push == 'true'
+        id: setup-buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GitHub Container Registry
+        if: steps.should-push-image.outputs.push == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: tambo-bot
+          password: ${{ secrets.RELEASE_PACKAGES }}
+
+      - name: Extract metadata for image
+        if: steps.should-push-image.outputs.push == 'true'
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ matrix.images.repo }}/${{ matrix.images.image }}
+          tags: |
+            type=raw,value=latest
+            type=sha,enable=true,priority=100,prefix=sha-,format=short
+            type=match,pattern=\w+-v(.*),group=1,value=${{ needs.meta.outputs.release-tag }}
+            type=match,pattern=v(.*),group=1,value=${{ needs.meta.outputs.release-tag }}
+          labels: |
+            org.opencontainers.image.description=${{ matrix.images.description }}
+            org.opencontainers.image.vendor=Tambo AI
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.source=https://github.com/tambo-ai/tambo/blob/${{ github.sha }}/${{ matrix.images.path }}
+            org.opencontainers.image.documentation=https://docs.tambo.co
+
+      - name: Build and push to GHCR
+        if: steps.should-push-image.outputs.push == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          builder: ${{ steps.setup-buildx.outputs.name }}
+          context: .
+          file: ./${{ matrix.images.path }}/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: |
+            type=gha,scope=buildx-${{ matrix.images.name }}-${{ github.ref_name }}
+            type=gha,scope=buildx-${{ matrix.images.name }}-main
+          cache-to: |
+            type=gha,scope=buildx-${{ matrix.images.name }}-${{ github.ref_name }},mode=max
+          build-args: |
+            NODE_ENV=production
+            TURBO_TEAM=${{ vars.TURBO_TEAM }}
+          secrets: |
+            TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
+          allow: network.host
+          network: host
+
+  docker-status:
+    needs: [meta, build, test, push]
+    if: ${{ always() }}
+    uses: ./.github/workflows/workflow-check.yml
+    with:
+      json-needs: ${{ toJSON(needs) }}
+      error-message: "One or more of the Docker jobs have failed. Please view the jobs for this workflow run for more details."

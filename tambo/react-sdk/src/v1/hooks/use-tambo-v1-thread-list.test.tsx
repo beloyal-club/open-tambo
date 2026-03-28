@@ -1,0 +1,174 @@
+import TamboAI from "@tambo-ai/typescript-sdk";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderHook, waitFor } from "@testing-library/react";
+import React from "react";
+import {
+  useTamboClient,
+  useTamboQueryClient,
+} from "../../providers/tambo-client-provider";
+import { useTamboConfig } from "../providers/tambo-v1-provider";
+import { useTamboThreadList } from "./use-tambo-v1-thread-list";
+
+jest.mock("../../providers/tambo-client-provider", () => ({
+  useTamboClient: jest.fn(),
+  useTamboQueryClient: jest.fn(),
+}));
+
+jest.mock("../providers/tambo-v1-provider", () => ({
+  useTamboConfig: jest.fn(),
+}));
+
+jest.mock("./use-tambo-v1-auth-state", () => ({
+  useTamboAuthState: () => ({
+    status: "identified",
+    source: "userKey",
+  }),
+}));
+
+describe("useTamboThreadList", () => {
+  const mockThreads = {
+    threads: [
+      { id: "thread_1", runStatus: "idle" },
+      { id: "thread_2", runStatus: "idle" },
+    ],
+    hasMore: false,
+    nextCursor: undefined,
+  };
+
+  const mockThreadsApi = {
+    retrieve: jest.fn(),
+    list: jest.fn(),
+  };
+
+  const mockTamboAI = {
+    apiKey: "",
+    threads: mockThreadsApi,
+  } as unknown as TamboAI;
+
+  let queryClient: QueryClient;
+
+  function TestWrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+  }
+
+  beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    });
+    jest.mocked(useTamboClient).mockReturnValue(mockTamboAI);
+    jest.mocked(useTamboQueryClient).mockReturnValue(queryClient);
+    jest.mocked(useTamboConfig).mockReturnValue({ userKey: undefined });
+    mockThreadsApi.list.mockReset();
+  });
+
+  it("fetches thread list", async () => {
+    mockThreadsApi.list.mockResolvedValue(mockThreads);
+
+    const { result } = renderHook(() => useTamboThreadList(), {
+      wrapper: TestWrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(mockThreads);
+    });
+
+    expect(mockThreadsApi.list).toHaveBeenCalledWith(undefined);
+  });
+
+  it("passes list options to API", async () => {
+    mockThreadsApi.list.mockResolvedValue(mockThreads);
+
+    const { result } = renderHook(
+      () =>
+        useTamboThreadList({
+          userKey: "test-context",
+          limit: 10,
+        }),
+      { wrapper: TestWrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(mockThreads);
+    });
+
+    expect(mockThreadsApi.list).toHaveBeenCalledWith({
+      userKey: "test-context",
+      limit: 10,
+    });
+  });
+
+  it("handles loading state", async () => {
+    let resolvePromise: (value: unknown) => void;
+    const promise = new Promise((resolve) => {
+      resolvePromise = resolve;
+    });
+    mockThreadsApi.list.mockReturnValue(promise);
+
+    const { result } = renderHook(() => useTamboThreadList(), {
+      wrapper: TestWrapper,
+    });
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.data).toBeUndefined();
+
+    resolvePromise!(mockThreads);
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+  });
+
+  it("handles error state", async () => {
+    const mockError = new Error("Failed to fetch threads");
+    mockThreadsApi.list.mockRejectedValue(mockError);
+
+    const { result } = renderHook(() => useTamboThreadList(), {
+      wrapper: TestWrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+      expect(result.current.error).toBe(mockError);
+    });
+  });
+
+  it("uses userKey from config when not provided in options", async () => {
+    mockThreadsApi.list.mockResolvedValue(mockThreads);
+    jest.mocked(useTamboConfig).mockReturnValue({ userKey: "config-user-key" });
+
+    const { result } = renderHook(() => useTamboThreadList(), {
+      wrapper: TestWrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(mockThreads);
+    });
+
+    expect(mockThreadsApi.list).toHaveBeenCalledWith({
+      userKey: "config-user-key",
+    });
+  });
+
+  it("prefers explicit userKey over config userKey", async () => {
+    mockThreadsApi.list.mockResolvedValue(mockThreads);
+    jest.mocked(useTamboConfig).mockReturnValue({ userKey: "config-user-key" });
+
+    const { result } = renderHook(
+      () => useTamboThreadList({ userKey: "explicit-user-key" }),
+      { wrapper: TestWrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(mockThreads);
+    });
+
+    expect(mockThreadsApi.list).toHaveBeenCalledWith({
+      userKey: "explicit-user-key",
+    });
+  });
+});
