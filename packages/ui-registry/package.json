@@ -65,8 +65,8 @@
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
     "streamdown": "^2.3.0",
-    "tailwind-merge": "^2.6.1",
-    "tailwindcss": "^4.1.18",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.2",
     "tailwindcss-animate": "^1.0.7",
     "ts-jest": "^29.4.6",
     "typescript": "^5.9.3"
